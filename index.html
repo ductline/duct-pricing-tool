@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DuctCalc — Duct Pricing Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0e0f11;--surface:#16181c;--surface2:#1e2026;--surface3:#252830;
+  --border:#2a2d35;--border2:#353840;
+  --accent:#f0c040;--accent2:#e8a020;
+  --green:#3dd68c;--red:#f05a5a;--blue:#5b9cf6;--purple:#a78bfa;
+  --text:#ecedf0;--text2:#9da3b0;--text3:#5e6370;
+  --radius:10px;--radius-lg:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;min-height:100vh;}
+
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;display:flex;align-items:center;gap:9px;flex-shrink:0;}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.logo span{color:var(--accent);}
+.header-rates{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.hrate{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 10px;}
+.hrate label{color:var(--text3);font-size:9px;letter-spacing:.5px;text-transform:uppercase;}
+.hrate input{background:transparent;border:none;outline:none;color:var(--accent);font-family:'DM Mono',monospace;font-size:13px;width:48px;text-align:right;}
+
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:2px;overflow-x:auto;}
+.tab{padding:10px 16px;cursor:pointer;color:var(--text2);font-size:12px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-badge{background:var(--surface3);color:var(--text2);font-family:'DM Mono',monospace;font-size:9px;padding:1px 5px;border-radius:8px;}
+.tab.active .tab-badge{background:var(--accent);color:var(--bg);}
+
+main{padding:18px 20px;max-width:1280px;margin:0 auto;}
+.page{display:none;}.page.active{display:block;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:14px;}
+.ct{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.ct-l{display:flex;align-items:center;gap:7px;}
+.ct-l::before{content:'';display:block;width:3px;height:11px;background:var(--accent);border-radius:2px;}
+.ct-green .ct-l::before{background:var(--green);}
+
+.order-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.mf label{display:block;color:var(--text3);font-size:9px;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;}
+.mf input,.mf select{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 10px;outline:none;transition:border-color .15s;}
+.mf input:focus,.mf select:focus{border-color:var(--accent);}
+.mf select option{background:var(--surface2);}
+
+.config-row{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:16px;}
+
+/* profit toggle */
+.profit-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;}
+.ptog{padding:5px 13px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s;}
+.ptog:hover{border-color:var(--accent);color:var(--text);}
+.ptog.act{background:rgba(240,192,64,.15);border-color:var(--accent);color:var(--accent);}
+.ptog.act-hi{background:rgba(61,214,140,.15);border-color:var(--green);color:var(--green);}
+.custom-p{display:flex;align-items:center;gap:5px;}
+.custom-p input{width:50px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;padding:4px 6px;text-align:center;outline:none;}
+.custom-p span{color:var(--text3);font-size:11px;}
+
+/* tables */
+.gt{width:100%;border-collapse:collapse;font-size:12px;}
+.gt th{background:var(--surface3);color:var(--text2);font-family:'Syne',sans-serif;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:8px 10px;text-align:right;border:1px solid var(--border);}
+.gt th:first-child{text-align:left;}
+.gt td{padding:9px 10px;border:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;vertical-align:middle;}
+.gt td:first-child{text-align:left;color:var(--accent);font-weight:500;}
+.gt tr:nth-child(even) td{background:var(--surface2);}
+.gt tr:hover td{background:rgba(240,192,64,.04);}
+.gt tfoot td{background:var(--surface3);font-weight:700;color:var(--text);border-top:2px solid var(--border2);}
+.gt .hi{color:var(--green);font-weight:600;}
+.gt input[type=number]{background:var(--surface3);border:1px solid var(--border2);border-radius:5px;color:var(--accent);font-family:'DM Mono',monospace;font-size:12px;padding:4px 7px;width:85px;text-align:right;outline:none;}
+.gt input[type=number]:focus{border-color:var(--accent);}
+
+/* quote section */
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px;}
+.qcard{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;position:relative;overflow:hidden;text-align:center;}
+.qcard::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent);}
+.qcard-total{background:rgba(61,214,140,.05);border-color:rgba(61,214,140,.25);}
+.qcard-total::after{background:var(--green);}
+.qg{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:5px;}
+.qprice{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--accent);}
+.qcard-total .qprice{color:var(--green);}
+.qsub{font-size:10px;color:var(--text3);margin-top:2px;font-family:'DM Mono',monospace;}
+.qmar{font-size:10px;margin-top:5px;font-family:'DM Mono',monospace;}
+.qmar.good{color:var(--green);}.qmar.warn{color:var(--accent);}.qmar.bad{color:var(--red);}
+
+/* summary */
+.srow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;}
+.sc{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:13px;text-align:center;}
+.sl{color:var(--text3);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
+.sv{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;}
+.ss{color:var(--text3);font-size:10px;margin-top:2px;font-family:'DM Mono',monospace;}
+
+/* cost bar */
+.cbar{height:6px;background:var(--surface3);border-radius:4px;overflow:hidden;display:flex;margin-top:14px;}
+.cbar-seg{height:100%;transition:width .4s;}
+.cleg{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+.cli{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
+.cldot{width:7px;height:7px;border-radius:2px;}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;transition:all .15s;}
+.btn-p{background:var(--accent);color:var(--bg);}
+.btn-p:hover{background:var(--accent2);}
+.btn-g{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}
+.btn-g:hover{background:var(--surface3);color:var(--text);}
+.btn-d{background:transparent;color:var(--red);border:1px solid var(--red);}
+.btn-d:hover{background:var(--red);color:#fff;}
+.brow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+
+/* history */
+.ht{width:100%;border-collapse:collapse;font-size:12px;}
+.ht th{background:var(--surface3);color:var(--text2);font-family:'Syne',sans-serif;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:8px 11px;text-align:left;border-bottom:1px solid var(--border);}
+.ht td{padding:9px 11px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);vertical-align:middle;}
+.ht tr:hover td{background:var(--surface2);}
+.ht td.nm{font-family:'DM Sans',sans-serif;color:var(--text);font-size:12px;}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-family:'DM Mono',monospace;}
+.bg{background:rgba(61,214,140,.15);color:var(--green);}
+.by{background:rgba(240,192,64,.15);color:var(--accent);}
+.br{background:rgba(240,90,90,.15);color:var(--red);}
+
+/* assumptions */
+.agrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fr{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);}
+.fr:last-child{border-bottom:none;}
+.fl{color:var(--text2);font-size:12px;}
+.fi{background:var(--surface3);border:1px solid var(--border2);border-radius:6px;color:var(--accent);font-family:'DM Mono',monospace;font-size:12px;padding:4px 8px;width:110px;text-align:right;outline:none;}
+.fi:focus{border-color:var(--accent);}
+.rgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:6px;}
+.rcell{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;}
+.rcell label{display:block;color:var(--text3);font-size:9px;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;}
+.rcell input{background:var(--surface3);border:1px solid var(--border2);border-radius:5px;color:var(--accent);font-family:'DM Mono',monospace;font-size:14px;width:100%;text-align:center;padding:5px;outline:none;}
+
+/* modal */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;}
+.mo.open{display:flex;}
+.md{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:22px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.mdtit{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+.mdc{cursor:pointer;background:none;border:none;font-size:17px;color:var(--text2);}
+.mdc:hover{color:var(--text);}
+
+.empty{text-align:center;padding:50px 20px;color:var(--text3);}
+.empty p{font-size:13px;color:var(--text2);margin-top:12px;}
+
+#toast{position:fixed;bottom:22px;right:22px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:10px 15px;font-size:12px;color:var(--text);transform:translateY(70px);opacity:0;transition:all .25s;z-index:999;}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.success{border-left:3px solid var(--green);}
+#toast.error{border-left:3px solid var(--red);}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+
+@keyframes shake {
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-8px);}
+  40%{transform:translateX(8px);}
+  60%{transform:translateX(-5px);}
+  80%{transform:translateX(5px);}
+}
+
+/* ── LOGIN ── */
+#login-screen{
+  position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+}
+.login-box{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:20px;padding:40px 36px;width:360px;max-width:92vw;
+  text-align:center;
+}
+.login-logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:26px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  margin-bottom:6px;
+}
+.login-logo-icon{width:36px;height:36px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.login-logo span{color:var(--accent);}
+.login-sub{color:var(--text3);font-size:12px;margin-bottom:28px;}
+.login-label{display:block;text-align:left;color:var(--text2);font-size:10px;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;}
+.login-input{
+  width:100%;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;
+  font-size:13px;padding:10px 13px;outline:none;margin-bottom:16px;
+  transition:border-color .15s;
+}
+.login-input:focus{border-color:var(--accent);}
+.login-btn{
+  width:100%;background:var(--accent);color:var(--bg);border:none;
+  border-radius:10px;padding:11px;font-family:'Syne',sans-serif;
+  font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;
+  margin-top:4px;
+}
+.login-btn:hover{background:var(--accent2);}
+.login-err{
+  color:var(--red);font-size:12px;margin-top:10px;
+  min-height:18px;font-family:'DM Mono',monospace;
+}
+.login-footer{color:var(--text3);font-size:10px;margin-top:20px;}
+</style>
+</head>
+<body>
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0e0f11" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      </div>
+      Duct<span>Calc</span>
+    </div>
+    <div class="login-sub">Duct Manufacturing Pricing Tool</div>
+    <label class="login-label">Password</label>
+    <input class="login-input" type="password" id="loginPass" placeholder="Enter team password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Sign In &rarr;</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-footer">Internal use only &mdash; Ductline Manufacturing</div>
+  </div>
+</div>
+
+
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0e0f11" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    </div>
+    Duct<span>Calc</span>
+  </div>
+  <div class="header-rates">
+    <span style="color:var(--text3);font-size:10px;flex-shrink:0">Steel ₹/kg →</span>
+    <div class="hrate"><label>26G</label><input id="r26" type="number" value="90" step="0.5" oninput="recalc()"></div>
+    <div class="hrate"><label>24G</label><input id="r24" type="number" value="88" step="0.5" oninput="recalc()"></div>
+    <div class="hrate"><label>22G</label><input id="r22" type="number" value="86" step="0.5" oninput="recalc()"></div>
+    <div class="hrate"><label>20G</label><input id="r20" type="number" value="86" step="0.5" oninput="recalc()"></div>
+    <div class="hrate"><label>18G</label><input id="r18" type="number" value="86" step="0.5" oninput="recalc()"></div>
+  </div>
+</header>
+
+<nav>
+  <div class="tab active" onclick="showPage('q')">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    New Quotation
+  </div>
+  <div class="tab" onclick="showPage('h')">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Order History <span class="tab-badge" id="hc">0</span>
+  </div>
+  <div class="tab" onclick="showPage('a')">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+    Assumptions
+  </div>
+</nav>
+
+<main>
+
+<!-- ══════ QUOTATION ══════ -->
+<div class="page active" id="page-q">
+
+  <div class="card">
+    <div class="ct"><div class="ct-l">Order Details</div></div>
+    <div class="order-meta">
+      <div class="mf"><label>Customer Name</label><input type="text" id="cust" placeholder="e.g. Sunrise Infra"></div>
+      <div class="mf"><label>Job / Order No.</label><input type="text" id="jobno" placeholder="JOB-001"></div>
+      <div class="mf"><label>Date</label><input type="date" id="odate"></div>
+      <div class="mf"><label>Prepared By</label><input type="text" id="prep" placeholder="Your name"></div>
+    </div>
+    <div class="config-row">
+      <div class="mf">
+        <label>Duct Type</label>
+        <select id="dtype" onchange="recalc()">
+          <option value="tdf_box">TDF — With Boxing</option>
+          <option value="tdf_lp">TDF — L-Profile</option>
+          <option value="cs_box">C&amp;S — With Boxing</option>
+          <option value="cs_lp">C&amp;S — L-Profile</option>
+          <option value="spiral_oval">Spiral Flat Oval</option>
+          <option value="spiral_round">Spiral Round</option>
+          <option value="plain_round">Plain Round</option>
+          <option value="ms_lp">MS Angle — L-Profile</option>
+          <option value="ms_box">MS Angle — Boxing</option>
+        </select>
+      </div>
+      <div class="mf">
+        <label>Profit Margin</label>
+        <div class="profit-bar">
+          <button class="ptog" onclick="setP(5)">5%</button>
+          <button class="ptog act" onclick="setP(6)">6%</button>
+          <button class="ptog" onclick="setP(7)">7%</button>
+          <button class="ptog" onclick="setP(8)">8%</button>
+          <button class="ptog" onclick="setP(9)">9%</button>
+          <button class="ptog" onclick="setP(10)">10%</button>
+          <div class="custom-p">
+            <span>Custom:</span>
+            <input type="number" id="cp" min="1" max="50" placeholder="%" oninput="setP(null)">
+            <span>%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quantities -->
+  <div class="card">
+    <div class="ct"><div class="ct-l">Quantities (sqm per gauge)</div></div>
+    <table class="gt">
+      <thead><tr>
+        <th>Gauge</th><th>Density g/cm³</th><th>Weight kg/sqm</th>
+        <th>Steel ₹/kg</th><th>Raw Mat ₹/sqm</th><th>Quantity (sqm)</th><th>Raw Mat Total</th>
+      </tr></thead>
+      <tbody id="qbody"></tbody>
+      <tfoot><tr>
+        <td colspan="5" style="text-align:right;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:11px">TOTAL</td>
+        <td id="ft_q" style="color:var(--accent)">0 sqm</td>
+        <td id="ft_r" style="color:var(--green)">₹0</td>
+      </tr></tfoot>
+    </table>
+  </div>
+
+  <!-- Cost breakdown -->
+  <div class="card">
+    <div class="ct"><div class="ct-l">Cost Breakdown (₹ / sqm)</div></div>
+    <table class="gt">
+      <thead><tr>
+        <th>Gauge</th><th>Raw Material</th><th>Plasma Cut</th>
+        <th>Accessories</th><th>Labour / MC</th><th>Overhead</th><th>Total Cost/sqm</th>
+      </tr></thead>
+      <tbody id="cbody"></tbody>
+    </table>
+    <div class="cbar">
+      <div class="cbar-seg" id="cb1" style="background:#5b9cf6;width:0%"></div>
+      <div class="cbar-seg" id="cb2" style="background:#8b6cf6;width:0%"></div>
+      <div class="cbar-seg" id="cb3" style="background:#f0c040;width:0%"></div>
+      <div class="cbar-seg" id="cb4" style="background:#3dd68c;width:0%"></div>
+      <div class="cbar-seg" id="cb5" style="background:#f05a5a;width:0%"></div>
+    </div>
+    <div class="cleg">
+      <div class="cli"><div class="cldot" style="background:#5b9cf6"></div>Raw Material</div>
+      <div class="cli"><div class="cldot" style="background:#8b6cf6"></div>Plasma Cut</div>
+      <div class="cli"><div class="cldot" style="background:#f0c040"></div>Accessories</div>
+      <div class="cli"><div class="cldot" style="background:#3dd68c"></div>Labour / MC</div>
+      <div class="cli"><div class="cldot" style="background:#f05a5a"></div>Overhead</div>
+    </div>
+  </div>
+
+  <!-- Quote output -->
+  <div class="card" style="border-color:rgba(61,214,140,.3)">
+    <div class="ct ct-green">
+      <div class="ct-l">Customer Quote Price (₹ / sqm)</div>
+      <div style="font-size:10px;color:var(--text3)">Cost/sqm ÷ (1 − <span id="plbl" style="color:var(--green);font-weight:700">6%</span>)</div>
+    </div>
+    <div class="qgrid" id="qgrid"></div>
+    <div class="srow">
+      <div class="sc"><div class="sl">Total Revenue</div><div class="sv" id="s1">₹0</div><div class="ss" id="s1b">0 sqm</div></div>
+      <div class="sc"><div class="sl">Total Cost</div><div class="sv" id="s2">₹0</div><div class="ss" id="s2b">0 kg steel</div></div>
+      <div class="sc"><div class="sl">Gross Profit</div><div class="sv" id="s3">₹0</div><div class="ss" id="s3b">₹0/sqm</div></div>
+      <div class="sc"><div class="sl">Margin %</div><div class="sv" id="s4">0.0%</div><div class="ss" id="s4b">—</div></div>
+    </div>
+  </div>
+
+  <div class="brow">
+    <button class="btn btn-p" onclick="saveOrder()">💾 Save to History</button>
+    <button class="btn btn-g" onclick="exportPDF()">📄 Export PDF</button>
+    <button class="btn btn-g" onclick="clearForm()">↺ Clear</button>
+  </div>
+
+</div>
+
+<!-- ══════ HISTORY ══════ -->
+<div class="page" id="page-h">
+  <div class="card">
+    <div class="ct"><div class="ct-l">Order History</div></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <input type="text" id="hs" placeholder="Search customer / job…"
+        style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:7px 10px;font-size:12px;outline:none;width:210px;"
+        oninput="renderH()">
+      <button class="btn btn-g" style="font-size:11px;padding:5px 11px" onclick="exportCSV()">↓ CSV</button>
+      <button class="btn btn-d" style="font-size:11px;padding:5px 11px" onclick="clearH()">Clear All</button>
+    </div>
+    <div id="hcon"></div>
+  </div>
+</div>
+
+<!-- ══════ ASSUMPTIONS ══════ -->
+<div class="page" id="page-a">
+  <div class="card">
+    <div class="ct"><div class="ct-l">Steel Rates per Gauge (₹/kg) — synced with header</div></div>
+    <div class="rgrid">
+      <div class="rcell"><label>26G</label><input type="number" id="ar26" value="90" step="0.5" oninput="syncR('26');recalc()"></div>
+      <div class="rcell"><label>24G</label><input type="number" id="ar24" value="88" step="0.5" oninput="syncR('24');recalc()"></div>
+      <div class="rcell"><label>22G</label><input type="number" id="ar22" value="86" step="0.5" oninput="syncR('22');recalc()"></div>
+      <div class="rcell"><label>20G</label><input type="number" id="ar20" value="86" step="0.5" oninput="syncR('20');recalc()"></div>
+      <div class="rcell"><label>18G</label><input type="number" id="ar18" value="86" step="0.5" oninput="syncR('18');recalc()"></div>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-top:6px">24G(0.63mm) TDF uses average of 24G and 26G rates. MS Angle uses its own fixed rates (26G=90, 24G=87, 22G-18G=85) from costing sheet.</p>
+  </div>
+  <div class="agrid">
+    <div class="card">
+      <div class="ct"><div class="ct-l">Monthly Overheads (₹)</div></div>
+      <div class="fr"><span class="fl">Electricity</span><input class="fi" id="ae" type="number" value="58000" oninput="updA()"></div>
+      <div class="fr"><span class="fl">Maintenance</span><input class="fi" id="am" type="number" value="70000" oninput="updA()"></div>
+      <div class="fr"><span class="fl">Mat Transport</span><input class="fi" id="at" type="number" value="44700" oninput="updA()"></div>
+      <div class="fr"><span class="fl">Insulation</span><input class="fi" id="ai" type="number" value="48700" oninput="updA()"></div>
+      <div class="fr"><span class="fl">Salary</span><input class="fi" id="as" type="number" value="448421" oninput="updA()"></div>
+      <div class="fr"><span class="fl">Crane</span><input class="fi" id="ac" type="number" value="13600" oninput="updA()"></div>
+      <div class="fr"><span class="fl">Misc</span><input class="fi" id="ax" type="number" value="38342" oninput="updA()"></div>
+      <div class="fr"><span class="fl">Monthly Rent</span><input class="fi" id="ar" type="number" value="362200" oninput="updA()"></div>
+      <div class="fr" style="margin-top:6px;border-top:1px solid var(--border2);padding-top:8px">
+        <span class="fl" style="color:var(--text)">Total Monthly</span>
+        <span id="atot" style="font-family:'DM Mono',monospace;color:var(--accent)">—</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct"><div class="ct-l">Monthly Production Volume (sqm)</div></div>
+      <p style="font-size:11px;color:var(--text3);margin-bottom:12px">For overhead-per-sqm reference. These are informational — the costing sheet uses % of raw material for overhead, not absolute allocation.</p>
+      <div class="fr"><span class="fl">26G planned (sqm)</span><input class="fi" id="v26" type="number" value="2000" oninput="updA()"></div>
+      <div class="fr"><span class="fl">24G planned (sqm)</span><input class="fi" id="v24" type="number" value="5000" oninput="updA()"></div>
+      <div class="fr"><span class="fl">22G planned (sqm)</span><input class="fi" id="v22" type="number" value="4000" oninput="updA()"></div>
+      <div class="fr"><span class="fl">20G planned (sqm)</span><input class="fi" id="v20" type="number" value="3000" oninput="updA()"></div>
+      <div class="fr"><span class="fl">18G planned (sqm)</span><input class="fi" id="v18" type="number" value="2000" oninput="updA()"></div>
+      <div class="fr" style="margin-top:6px;border-top:1px solid var(--border2);padding-top:8px">
+        <span class="fl" style="color:var(--text)">Total Volume</span>
+        <span id="avol" style="font-family:'DM Mono',monospace;color:var(--green)">16,000 sqm</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- Modal -->
+<div class="mo" id="vm">
+  <div class="md">
+    <div class="mdtit"><span id="mtit">Order</span><button class="mdc" onclick="closeM()">✕</button></div>
+    <div id="mbody"></div>
+    <div class="brow" style="margin-top:18px">
+      <button class="btn btn-p" style="font-size:11px;padding:6px 13px" onclick="exportOrderPDF(curM)">Export PDF</button>
+      <button class="btn btn-g" style="font-size:11px;padding:6px 13px" onclick="loadOrder(curM);closeM();showPage('q')">Load to Form</button>
+      <button class="btn btn-d" style="font-size:11px;padding:6px 13px" onclick="delOrder(curM);closeM()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// DUCT TYPE DATA — exact from costing sheet
+// ══════════════════════════════════════════
+const DT = {
+  tdf_box:{
+    label:'TDF — With Boxing', density:8.63,
+    gauges:['26G','24G','24G(0.63)','22G','20G','18G'],
+    wt:    {'26G':4.315,'24G':5.178,'24G(0.63)':5.437,'22G':6.904,'20G':8.630,'18G':10.356},
+    plasma:{'26G':0.08, '24G':0.06, '24G(0.63)':0.06, '22G':0.05, '20G':0.05, '18G':0.05},
+    acc:   {'26G':65,   '24G':60,   '24G(0.63)':60,   '22G':45,   '20G':30,   '18G':30},
+    lab:   {'26G':70,   '24G':70,   '24G(0.63)':70,   '22G':70,   '20G':70,   '18G':70},
+    ohp:   {'26G':0.08, '24G':0.06, '24G(0.63)':0.06, '22G':0.05, '20G':0.05, '18G':0.05},
+  },
+  tdf_lp:{
+    label:'TDF — L-Profile', density:8.63,
+    gauges:['26G','24G','22G','20G','18G'],
+    wt:    {'26G':4.315,'24G':5.178,'22G':6.904,'20G':8.630,'18G':10.356},
+    plasma:{'26G':0.08, '24G':0.06, '22G':0.05, '20G':0.05, '18G':0.05},
+    acc:   {'26G':65,   '24G':60,   '22G':45,   '20G':30,   '18G':30},
+    lab:   {'26G':50,   '24G':50,   '22G':50,   '20G':50,   '18G':50},
+    ohp:   {'26G':0.08, '24G':0.06, '22G':0.05, '20G':0.05, '18G':0.05},
+  },
+  cs_box:{
+    label:'C&S — With Boxing', density:8.0,
+    gauges:['26G','24G','22G'],
+    wt:    {'26G':4.0,'24G':4.8,'22G':6.4},
+    plasma:{'26G':0.08,'24G':0.06,'22G':0.05},
+    acc:   {'26G':30, '24G':30, '22G':30},
+    lab:   {'26G':60, '24G':60, '22G':60},
+    ohp:   {'26G':0.08,'24G':0.06,'22G':0.05},
+  },
+  cs_lp:{
+    label:'C&S — L-Profile', density:8.0,
+    gauges:['26G','24G','22G'],
+    wt:    {'26G':4.0,'24G':4.8,'22G':6.4},
+    plasma:{'26G':0.06,'24G':0.06,'22G':0.05},
+    acc:   {'26G':30, '24G':30, '22G':30},
+    lab:   {'26G':40, '24G':40, '22G':40},
+    ohp:   {'26G':0.06,'24G':0.06,'22G':0.05},
+  },
+  spiral_oval:{
+    label:'Spiral Flat Oval', density:9.0,
+    gauges:['24G','22G','20G','18G'],
+    wt:    {'24G':5.4,'22G':7.2,'20G':9.0,'18G':10.8},
+    plasma:{'24G':0.10,'22G':0.06,'20G':0.05,'18G':0.05},
+    acc:   {'24G':60, '22G':60, '20G':60, '18G':60},
+    lab:   {'24G':100,'22G':100,'20G':100,'18G':100},
+    ohp:   {'24G':0.10,'22G':0.06,'20G':0.05,'18G':0.05},
+  },
+  spiral_round:{
+    label:'Spiral Round', density:9.0,
+    gauges:['24G','22G','20G','18G'],
+    wt:    {'24G':5.4,'22G':7.2,'20G':9.0,'18G':10.8},
+    plasma:{'24G':0.10,'22G':0.06,'20G':0.05,'18G':0.05},
+    acc:   {'24G':30, '22G':30, '20G':30, '18G':30},
+    lab:   {'24G':80, '22G':80, '20G':80, '18G':80},
+    ohp:   {'24G':0.10,'22G':0.06,'20G':0.05,'18G':0.05},
+  },
+  plain_round:{
+    label:'Plain Round', density:8.0,
+    gauges:['26G','24G','22G','20G','18G'],
+    wt:    {'26G':4.0,'24G':4.8,'22G':6.4,'20G':8.0,'18G':9.6},
+    plasma:{'26G':0.10,'24G':0.08,'22G':0.05,'20G':0.05,'18G':0.05},
+    acc:   {'26G':20, '24G':20, '22G':20, '20G':20, '18G':20},
+    lab:   {'26G':80, '24G':80, '22G':80, '20G':80, '18G':80},
+    ohp:   {'26G':0.10,'24G':0.08,'22G':0.05,'20G':0.05,'18G':0.05},
+  },
+  ms_lp:{
+    label:'MS Angle — L-Profile', density:8.0,
+    gauges:['26G','24G','22G','20G','18G'],
+    wt:    {'26G':4.0,'24G':4.8,'22G':6.4,'20G':8.0,'18G':9.6},
+    plasma:{'26G':0.10,'24G':0.08,'22G':0.05,'20G':0.05,'18G':0.05},
+    acc:   {'26G':30, '24G':30, '22G':30, '20G':30, '18G':30},
+    lab:   {'26G':50, '24G':50, '22G':50, '20G':50, '18G':50},
+    ohp:   {'26G':0.10,'24G':0.08,'22G':0.05,'20G':0.05,'18G':0.05},
+    msR:   {'26G':90, '24G':87, '22G':85, '20G':85, '18G':85},
+  },
+  ms_box:{
+    label:'MS Angle — Boxing', density:8.0,
+    gauges:['26G','24G','22G','20G','18G'],
+    wt:    {'26G':4.0,'24G':4.8,'22G':6.4,'20G':8.0,'18G':9.6},
+    plasma:{'26G':0.10,'24G':0.08,'22G':0.05,'20G':0.05,'18G':0.05},
+    acc:   {'26G':40, '24G':40, '22G':40, '20G':40, '18G':40},
+    lab:   {'26G':100,'24G':100,'22G':100,'20G':100,'18G':100},
+    ohp:   {'26G':0.10,'24G':0.08,'22G':0.05,'20G':0.05,'18G':0.05},
+    msR:   {'26G':90, '24G':87, '22G':85, '20G':85, '18G':85},
+  },
+};
+
+// ══════════════════════
+// STATE
+// ══════════════════════
+let orders = JSON.parse(localStorage.getItem('dc_orders')||'[]');
+let curM = null;
+let curP = 6;
+
+// ══════════════════════
+// NAV
+// ══════════════════════
+function showPage(n){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+n).classList.add('active');
+  ['q','h','a'].forEach((x,i)=>{ if(x===n) document.querySelectorAll('.tab')[i].classList.add('active'); });
+  if(n==='h') renderH();
+  if(n==='a') updA();
+}
+
+// ══════════════════════
+// PROFIT
+// ══════════════════════
+function setP(v){
+  if(v!==null){ curP=v; document.getElementById('cp').value=''; }
+  else{ const cv=parseFloat(document.getElementById('cp').value); if(!isNaN(cv)&&cv>0) curP=cv; }
+  document.querySelectorAll('.ptog').forEach(b=>{ b.classList.remove('act','act-hi'); if(parseFloat(b.textContent)===curP) b.classList.add(curP>=8?'act-hi':'act'); });
+  const pl=document.getElementById('plbl'); pl.textContent=curP+'%'; pl.style.color=curP>=8?'var(--green)':curP>=6?'var(--accent)':'var(--text2)';
+  recalc();
+}
+
+// ══════════════════════
+// RATES
+// ══════════════════════
+function getRates(){
+  const r24=parseFloat(document.getElementById('r24').value)||88;
+  const r26=parseFloat(document.getElementById('r26').value)||90;
+  return {
+    '26G': r26,
+    '24G': r24,
+    '24G(0.63)': (r24+r26)/2,
+    '22G': parseFloat(document.getElementById('r22').value)||86,
+    '20G': parseFloat(document.getElementById('r20').value)||86,
+    '18G': parseFloat(document.getElementById('r18').value)||86,
+  };
+}
+function syncR(g){ const ar=document.getElementById('ar'+g),hr=document.getElementById('r'+g); if(ar&&hr) hr.value=ar.value; }
+
+// ══════════════════════
+// COMPUTE ONE GAUGE
+// ══════════════════════
+function calcGauge(tk,g,rates){
+  const dt=DT[tk];
+  const wt=dt.wt[g];
+  const rate=dt.msR ? dt.msR[g] : rates[g];
+  const raw   = wt*rate;
+  const plasma= raw*dt.plasma[g];
+  const acc   = dt.acc[g];
+  const lab   = dt.lab[g];
+  const sub   = raw+plasma;
+  const oh    = sub*dt.ohp[g];
+  const total = sub+oh+acc+lab;
+  const quote = total/(1-curP/100);
+  return {wt,rate,raw,plasma,acc,lab,oh,total,quote};
+}
+
+// ══════════════════════
+// RECALC
+// ══════════════════════
+function recalc(){
+  const tk=document.getElementById('dtype').value;
+  const dt=DT[tk];
+  const rates=getRates();
+
+  // save existing qtys before re-render
+  const savedQty={};
+  dt.gauges.forEach(g=>{
+    const el=document.getElementById('q_'+gid(g));
+    if(el) savedQty[g]=el.value;
+  });
+
+  // Qty table
+  const qb=document.getElementById('qbody'); qb.innerHTML='';
+  dt.gauges.forEach(g=>{
+    const c=calcGauge(tk,g,rates);
+    const qty=parseFloat(savedQty[g])||0;
+    qb.innerHTML+=`<tr>
+      <td>${g}</td>
+      <td style="color:var(--text2)">${dt.density}</td>
+      <td>${f2(c.wt)}</td>
+      <td>₹${f2(c.rate)}</td>
+      <td>₹${f2(c.raw)}</td>
+      <td><input type="number" id="q_${gid(g)}" value="${qty}" min="0" step="1" oninput="recalc()"></td>
+      <td style="color:var(--green)">₹${f0(c.raw*qty)}</td>
+    </tr>`;
+  });
+
+  // restore values
+  dt.gauges.forEach(g=>{ const el=document.getElementById('q_'+gid(g)); if(el&&savedQty[g]!==undefined) el.value=savedQty[g]; });
+
+  // gather results
+  let tQty=0,tRev=0,tCost=0,tKg=0;
+  let sRaw=0,sPla=0,sAcc=0,sLab=0,sOh=0;
+  const res={};
+  dt.gauges.forEach(g=>{
+    const c=calcGauge(tk,g,rates);
+    const qty=parseFloat(document.getElementById('q_'+gid(g))?.value)||0;
+    res[g]={...c,qty};
+    tQty+=qty; tRev+=c.quote*qty; tCost+=c.total*qty; tKg+=c.wt*qty;
+    sRaw+=c.raw*qty; sPla+=c.plasma*qty; sAcc+=c.acc*qty; sLab+=c.lab*qty; sOh+=c.oh*qty;
+  });
+
+  document.getElementById('ft_q').textContent=f0(tQty)+' sqm';
+  document.getElementById('ft_r').textContent='₹'+fL(sRaw);
+
+  // Cost table
+  const cb=document.getElementById('cbody'); cb.innerHTML='';
+  dt.gauges.forEach(g=>{
+    const c=res[g];
+    cb.innerHTML+=`<tr>
+      <td>${g}</td>
+      <td>₹${f2(c.raw)}</td>
+      <td>₹${f2(c.plasma)}<span style="color:var(--text3);font-size:9px"> (${(DT[tk].plasma[g]*100).toFixed(0)}%)</span></td>
+      <td>₹${f2(c.acc)}</td>
+      <td>₹${f2(c.lab)}</td>
+      <td>₹${f2(c.oh)}<span style="color:var(--text3);font-size:9px"> (${(DT[tk].ohp[g]*100).toFixed(0)}%)</span></td>
+      <td class="hi">₹${f2(c.total)}</td>
+    </tr>`;
+  });
+
+  // cost bar
+  const gc=sRaw+sPla+sAcc+sLab+sOh;
+  if(gc>0){
+    document.getElementById('cb1').style.width=(sRaw/gc*100).toFixed(1)+'%';
+    document.getElementById('cb2').style.width=(sPla/gc*100).toFixed(1)+'%';
+    document.getElementById('cb3').style.width=(sAcc/gc*100).toFixed(1)+'%';
+    document.getElementById('cb4').style.width=(sLab/gc*100).toFixed(1)+'%';
+    document.getElementById('cb5').style.width=(sOh/gc*100).toFixed(1)+'%';
+  }
+
+  // Quote grid
+  const qg=document.getElementById('qgrid'); qg.innerHTML='';
+  dt.gauges.forEach(g=>{
+    const c=res[g];
+    const m=(c.quote-c.total)/c.quote;
+    const mc=m>=0.08?'good':m>=0.05?'warn':'bad';
+    qg.innerHTML+=`<div class="qcard">
+      <div class="qg">${g}</div>
+      <div class="qprice">₹${f2(c.quote)}</div>
+      <div class="qsub">cost ₹${f2(c.total)}/sqm</div>
+      <div class="qmar ${mc}">▲ ${(m*100).toFixed(1)}% margin</div>
+    </div>`;
+  });
+  const ovm=tRev>0?(tRev-tCost)/tRev:0;
+  const mc2=ovm>=0.08?'good':ovm>=0.05?'warn':'bad';
+  qg.innerHTML+=`<div class="qcard qcard-total">
+    <div class="qg">Order Total</div>
+    <div class="qprice">₹${fL(tRev)}</div>
+    <div class="qsub">${f0(tQty)} sqm</div>
+    <div class="qmar ${mc2}">▲ ${(ovm*100).toFixed(1)}% margin</div>
+  </div>`;
+
+  // Summary
+  const pr=tRev-tCost;
+  document.getElementById('s1').textContent='₹'+fL(tRev);
+  document.getElementById('s2').textContent='₹'+fL(tCost);
+  document.getElementById('s3').textContent='₹'+fL(pr);
+  document.getElementById('s4').textContent=(ovm*100).toFixed(1)+'%';
+  document.getElementById('s1b').textContent=f0(tQty)+' sqm';
+  document.getElementById('s2b').textContent=f2(tKg)+' kg steel';
+  document.getElementById('s3b').textContent=tQty>0?'₹'+f2(pr/tQty)+'/sqm':'—';
+  document.getElementById('s4').style.color=ovm>=0.08?'var(--green)':ovm>=0.05?'var(--accent)':'var(--red)';
+  document.getElementById('s3').style.color=pr>=0?'var(--green)':'var(--red)';
+  document.getElementById('s4b').textContent=ovm>=0.08?'Healthy ✓':ovm>=0.05?'Thin — review':'Below target';
+}
+
+function gid(g){ return g.replace(/[^a-z0-9]/gi,'_'); }
+
+// ══════════════════════
+// SAVE
+// ══════════════════════
+function saveOrder(){
+  const tk=document.getElementById('dtype').value;
+  const dt=DT[tk]; const rates=getRates();
+  let tQty=0; const qtys={}, costs={};
+  dt.gauges.forEach(g=>{ const q=parseFloat(document.getElementById('q_'+gid(g))?.value)||0; qtys[g]=q; tQty+=q; costs[g]=calcGauge(tk,g,rates); });
+  if(!tQty){toast('Add at least one quantity','error');return;}
+  const cust=document.getElementById('cust').value.trim();
+  if(!cust){toast('Enter customer name','error');return;}
+  const rev=dt.gauges.reduce((s,g)=>s+costs[g].quote*qtys[g],0);
+  const cost=dt.gauges.reduce((s,g)=>s+costs[g].total*qtys[g],0);
+  const kg=dt.gauges.reduce((s,g)=>s+costs[g].wt*qtys[g],0);
+  const o={
+    id:Date.now(),customer:cust,jobNo:document.getElementById('jobno').value.trim(),
+    date:document.getElementById('odate').value||new Date().toISOString().slice(0,10),
+    prepBy:document.getElementById('prep').value.trim(),
+    tk,typeLabel:dt.label,profit:curP,qtys,costs,
+    revenue:rev,totalCost:cost,totalKg:kg,profitRs:rev-cost,
+    margin:rev>0?(rev-cost)/rev:0,
+    rates:JSON.parse(JSON.stringify(rates)),
+  };
+  orders.unshift(o); localStorage.setItem('dc_orders',JSON.stringify(orders));
+  document.getElementById('hc').textContent=orders.length;
+  toast('Order saved ✓','success');
+}
+
+// ══════════════════════
+// HISTORY
+// ══════════════════════
+function renderH(){
+  const q=(document.getElementById('hs')?.value||'').toLowerCase();
+  const fil=orders.filter(o=>o.customer.toLowerCase().includes(q)||(o.jobNo||'').toLowerCase().includes(q));
+  const el=document.getElementById('hcon');
+  if(!fil.length){
+    el.innerHTML=`<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>${orders.length===0?'No orders yet — save a quotation to see it here':'No results found'}</p></div>`;
+    return;
+  }
+  el.innerHTML=`<table class="ht"><thead><tr>
+    <th>Date</th><th>Customer</th><th>Job No.</th><th>Duct Type</th>
+    <th>Total sqm</th><th>Revenue</th><th>Cost</th><th>Margin</th><th>Profit%</th><th></th>
+  </tr></thead><tbody>${fil.map(o=>{
+    const tq=Object.values(o.qtys).reduce((s,v)=>s+v,0);
+    const mc=o.margin>=0.08?'bg':o.margin>=0.05?'by':'br';
+    return `<tr><td>${o.date}</td><td class="nm">${o.customer}</td><td>${o.jobNo||'—'}</td>
+    <td style="color:var(--text);font-family:'DM Sans',sans-serif">${o.typeLabel}</td>
+    <td>${f0(tq)}</td><td>₹${fL(o.revenue)}</td><td>₹${fL(o.totalCost)}</td>
+    <td><span class="badge ${mc}">${(o.margin*100).toFixed(1)}%</span></td>
+    <td style="color:var(--accent)">${o.profit}%</td>
+    <td><button class="btn btn-g" style="font-size:11px;padding:4px 10px" onclick="viewO(${o.id})">View</button></td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function viewO(id){
+  const o=orders.find(x=>x.id===id); if(!o) return;
+  curM=id; const dt=DT[o.tk];
+  const tq=Object.values(o.qtys).reduce((s,v)=>s+v,0);
+  document.getElementById('mtit').textContent=`${o.customer} — ${o.typeLabel}`;
+  document.getElementById('mbody').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      ${[['Date',o.date],['Customer',o.customer],['Job No.',o.jobNo||'—'],['Duct Type',o.typeLabel],
+         ['Profit Margin',o.profit+'%'],['Total Qty',f0(tq)+' sqm']
+      ].map(([l,v])=>`<div style="background:var(--surface2);border-radius:7px;padding:8px 11px">
+        <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">${l}</div>
+        <div style="font-family:'DM Mono',monospace;color:var(--text);font-size:12px">${v}</div></div>`).join('')}
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr>${['Gauge','Qty','Cost/sqm','Quote/sqm','Revenue','Cost','Profit'].map(h=>
+        `<th style="background:var(--surface3);padding:6px 9px;text-align:right;color:var(--text2);font-size:9px;letter-spacing:1px;text-transform:uppercase">${h}</th>`).join('')}</tr></thead>
+      <tbody>${dt.gauges.map(g=>{
+        const q=o.qtys[g]||0,c=o.costs[g]; if(!q) return '';
+        return `<tr><td style="padding:7px 9px;border-bottom:1px solid var(--border);color:var(--accent);font-family:'DM Mono',monospace">${g}</td>
+          <td style="padding:7px 9px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">${f0(q)}</td>
+          <td style="padding:7px 9px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">₹${f2(c.total)}</td>
+          <td style="padding:7px 9px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;color:var(--accent)">₹${f2(c.quote)}</td>
+          <td style="padding:7px 9px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">₹${fL(c.quote*q)}</td>
+          <td style="padding:7px 9px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">₹${fL(c.total*q)}</td>
+          <td style="padding:7px 9px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;color:var(--green)">₹${fL((c.quote-c.total)*q)}</td></tr>`;
+      }).join('')}
+      <tr><td colspan="4" style="padding:8px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif">TOTAL</td>
+        <td style="padding:8px;text-align:right;font-weight:700;font-family:'DM Mono',monospace;color:var(--text)">₹${fL(o.revenue)}</td>
+        <td style="padding:8px;text-align:right;font-weight:700;font-family:'DM Mono',monospace;color:var(--text)">₹${fL(o.totalCost)}</td>
+        <td style="padding:8px;text-align:right;font-weight:700;font-family:'DM Mono',monospace;color:var(--green)">₹${fL(o.profitRs)}</td>
+      </tr></tbody>
+    </table>
+    <div style="margin-top:12px;padding:12px;background:var(--surface2);border-radius:8px;display:flex;gap:20px;flex-wrap:wrap">
+      <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Margin</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:${o.margin>=0.08?'var(--green)':o.margin>=0.05?'var(--accent)':'var(--red)'}">${(o.margin*100).toFixed(1)}%</div></div>
+      <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Steel Used</div>
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text)">${f2(o.totalKg)} kg</div></div>
+      <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Profit/sqm</div>
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text)">₹${f2(o.profitRs/tq)}</div></div>
+    </div>`;
+  document.getElementById('vm').classList.add('open');
+}
+
+function closeM(){ document.getElementById('vm').classList.remove('open'); }
+
+function delOrder(id){
+  orders=orders.filter(o=>o.id!==id); localStorage.setItem('dc_orders',JSON.stringify(orders));
+  document.getElementById('hc').textContent=orders.length; renderH(); toast('Deleted','success');
+}
+
+function loadOrder(id){
+  const o=orders.find(x=>x.id===id); if(!o) return;
+  document.getElementById('cust').value=o.customer;
+  document.getElementById('jobno').value=o.jobNo||'';
+  document.getElementById('odate').value=o.date;
+  document.getElementById('prep').value=o.prepBy||'';
+  document.getElementById('dtype').value=o.tk;
+  if(o.rates){ ['26G','24G','22G','20G','18G'].forEach(g=>{ const n=g.replace('G',''); const el=document.getElementById('r'+n); if(el&&o.rates[g]) el.value=o.rates[g]; }); }
+  setP(o.profit); recalc();
+  setTimeout(()=>{ DT[o.tk].gauges.forEach(g=>{ const el=document.getElementById('q_'+gid(g)); if(el) el.value=o.qtys[g]||0; }); recalc(); },80);
+  toast('Order loaded','success');
+}
+
+function clearH(){ if(!confirm('Delete all history?')) return; orders=[]; localStorage.setItem('dc_orders','[]'); document.getElementById('hc').textContent=0; renderH(); toast('Cleared','success'); }
+
+function exportCSV(){
+  if(!orders.length){toast('No orders','error');return;}
+  const h=['Date','Customer','Job No.','Duct Type','Total Sqm','Revenue','Cost','Profit Rs','Margin %','Profit %'];
+  const rows=orders.map(o=>{const tq=Object.values(o.qtys).reduce((s,v)=>s+v,0); return [o.date,o.customer,o.jobNo||'',o.typeLabel,tq,o.revenue.toFixed(0),o.totalCost.toFixed(0),o.profitRs.toFixed(0),(o.margin*100).toFixed(1)+'%',o.profit+'%'];});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([[h,...rows].map(r=>r.join(',')).join('\n')],{type:'text/csv'}));
+  a.download='DuctCalc_'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); toast('CSV exported','success');
+}
+
+// ══════════════════════
+// PDF
+// ══════════════════════
+function buildSnap(){
+  const tk=document.getElementById('dtype').value; const dt=DT[tk]; const rates=getRates();
+  const qtys={},costs={};
+  dt.gauges.forEach(g=>{ const q=parseFloat(document.getElementById('q_'+gid(g))?.value)||0; qtys[g]=q; costs[g]=calcGauge(tk,g,rates); });
+  const rev=dt.gauges.reduce((s,g)=>s+costs[g].quote*qtys[g],0);
+  const cost=dt.gauges.reduce((s,g)=>s+costs[g].total*qtys[g],0);
+  const kg=dt.gauges.reduce((s,g)=>s+costs[g].wt*qtys[g],0);
+  return {customer:document.getElementById('cust').value||'Draft',jobNo:document.getElementById('jobno').value,
+    date:document.getElementById('odate').value||new Date().toISOString().slice(0,10),prepBy:document.getElementById('prep').value,
+    tk,typeLabel:dt.label,profit:curP,qtys,costs,revenue:rev,totalCost:cost,totalKg:kg,
+    profitRs:rev-cost,margin:rev>0?(rev-cost)/rev:0,gauges:dt.gauges};
+}
+function exportPDF(){ genPDF(buildSnap()); }
+function exportOrderPDF(id){ const o=orders.find(x=>x.id===id); if(o) genPDF({...o,gauges:DT[o.tk].gauges}); }
+
+function genPDF(o){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,m=14;
+  doc.setFillColor(14,15,17); doc.rect(0,0,W,28,'F');
+  doc.setTextColor(240,192,64); doc.setFontSize(17); doc.setFont('helvetica','bold'); doc.text('DuctCalc',m,12);
+  doc.setTextColor(180,180,180); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text(o.typeLabel,m,20);
+  doc.text('Margin: '+o.profit+'%  |  '+new Date().toLocaleDateString('en-IN'),W-m,20,{align:'right'});
+  let y=35;
+  [['Customer',o.customer],['Job No.',o.jobNo||'—'],['Date',o.date],['Prepared By',o.prepBy||'—']].forEach(([l,v],i)=>{
+    const x=m+(i%2)*90; if(i===2) y+=13;
+    doc.setTextColor(120,120,120); doc.setFontSize(7); doc.text(l.toUpperCase(),x,y);
+    doc.setTextColor(20,20,20); doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.text(v,x,y+5);
+    doc.setFont('helvetica','normal');
+  });
+  y+=17;
+  doc.setFillColor(240,192,64); doc.rect(m,y,W-m*2,5.5,'F');
+  doc.setTextColor(14,15,17); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('COST BREAKDOWN & QUOTE PRICES',m+2,y+3.8); y+=9;
+  const cols=[16,18,20,18,16,16,16,20,20]; const hdrs=['Gauge','Wt/sqm','Raw Mat','Plasma','Acc','Labour','OH','Cost/sqm','Quote/sqm'];
+  doc.setFillColor(245,245,245); doc.rect(m,y-4,W-m*2,5.5,'F');
+  doc.setTextColor(80,80,80); doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+  let x=m; hdrs.forEach((h,i)=>{doc.text(h,x+cols[i]/2,y,{align:'center'});x+=cols[i];}); y+=2.5;
+  o.gauges.forEach((g,idx)=>{
+    const q=o.qtys[g]||0,c=o.costs[g];
+    if(idx%2===0){doc.setFillColor(252,252,252);doc.rect(m,y,W-m*2,6.5,'F');}
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30);
+    x=m; [g,f2(c.wt),'₹'+f2(c.raw),'₹'+f2(c.plasma),'₹'+f2(c.acc),'₹'+f2(c.lab),'₹'+f2(c.oh),'₹'+f2(c.total),'₹'+f2(c.quote)].forEach((v,i)=>{
+      if(i===8){doc.setTextColor(160,100,0);doc.setFont('helvetica','bold');}
+      doc.text(v,x+cols[i]/2,y+4.8,{align:'center'}); doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');x+=cols[i];});
+    y+=6.5;
+  });
+  y+=4;
+  doc.setFillColor(240,192,64); doc.rect(m,y,W-m*2,5.5,'F');
+  doc.setTextColor(14,15,17); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('ORDER SUMMARY',m+2,y+3.8); y+=9;
+  const tq=Object.values(o.qtys).reduce((s,v)=>s+v,0);
+  [['Total Qty',f0(tq)+' sqm'],['Revenue','₹'+fL(o.revenue)],['Total Cost','₹'+fL(o.totalCost)],
+   ['Gross Profit','₹'+fL(o.profitRs)],['Margin %',(o.margin*100).toFixed(1)+'%'],['Steel Used',f2(o.totalKg)+' kg']
+  ].forEach(([l,v],i)=>{
+    const bx=m+(i%3)*60,by=y+Math.floor(i/3)*15;
+    doc.setFillColor(245,245,245); doc.rect(bx,by-3.5,56,11,'F');
+    doc.setTextColor(120,120,120); doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.text(l.toUpperCase(),bx+2,by);
+    doc.setTextColor(20,20,20); doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.text(v,bx+2,by+5.5);
+  });
+  doc.setFillColor(14,15,17); doc.rect(0,282,210,15,'F');
+  doc.setTextColor(100,100,100); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+  doc.text('DuctCalc  |  Quote includes '+o.profit+'% profit margin  |  Rates subject to change',105,290,{align:'center'});
+  doc.save('DuctCalc_'+o.customer.replace(/\s/g,'_')+'_'+o.date+'.pdf');
+  toast('PDF exported','success');
+}
+
+// ══════════════════════
+// ASSUMPTIONS
+// ══════════════════════
+function updA(){
+  const oh=['ae','am','at','ai','as','ac','ax'].reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
+  const rent=parseFloat(document.getElementById('ar')?.value)||0;
+  const vol=['26','24','22','20','18'].reduce((s,g)=>s+(parseFloat(document.getElementById('v'+g)?.value)||0),0);
+  document.getElementById('atot').textContent='₹'+fL(oh+rent);
+  document.getElementById('avol').textContent=f0(vol)+' sqm';
+}
+
+// ══════════════════════
+// UTILS
+// ══════════════════════
+function f0(n){return Math.round(n).toLocaleString('en-IN');}
+function f2(n){return (+n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fL(n){const a=Math.abs(n);if(a>=1e7)return (n/1e7).toFixed(2)+'Cr';if(a>=1e5)return (n/1e5).toFixed(2)+'L';return Math.round(n).toLocaleString('en-IN');}
+
+function clearForm(){
+  ['cust','jobno','prep'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('odate').value=new Date().toISOString().slice(0,10);
+  recalc();
+  setTimeout(()=>{ document.querySelectorAll('input[id^="q_"]').forEach(el=>el.value=0); recalc(); },60);
+}
+
+let tt;
+function toast(msg,type='success'){
+  const t=document.getElementById('toast'); t.textContent=msg; t.className='show '+type;
+  clearTimeout(tt); tt=setTimeout(()=>t.className='',2800);
+}
+
+
+// ══════════════════════
+// LOGIN
+// ══════════════════════
+const PASS = btoa('Ductline1$');  // base64 stored — not plain text in source
+
+function doLogin() {
+  const val = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  if (btoa(val) === PASS) {
+    sessionStorage.setItem('dc_auth', PASS);
+    document.getElementById('login-screen').style.display = 'none';
+    err.textContent = '';
+  } else {
+    err.textContent = 'Incorrect password. Please try again.';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+    // shake animation
+    const box = document.querySelector('.login-box');
+    box.style.animation = 'none';
+    box.offsetHeight; // reflow
+    box.style.animation = 'shake 0.4s ease';
+  }
+}
+
+function checkAuth() {
+  const stored = sessionStorage.getItem('dc_auth');
+  if (stored === PASS) {
+    document.getElementById('login-screen').style.display = 'none';
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+}
+
+// ══════════════════════
+// INIT
+// ══════════════════════
+document.getElementById('vm').addEventListener('click',function(e){if(e.target===this)closeM();});
+checkAuth();
+document.getElementById('odate').value=new Date().toISOString().slice(0,10);
+document.getElementById('hc').textContent=orders.length;
+setP(6);
+recalc();
+</script>
+</body>
+</html>
