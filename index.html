@@ -1050,7 +1050,7 @@ function genPDF(o){
   // Vertical col dividers (header only)
   doc.setDrawColor(60,60,60); doc.setLineWidth(0.2);
   [cX[1],cX[2],cX[3],cX[4],cX[5]].forEach(cx=>{
-    doc.line(cx,tableTop,cx,tableTop+tHdrH);
+    doc.line(cx,tableStartY,cx,tableStartY+tHdrH);
   });
 
   // =========================================================
