@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DuctCalc — Duct Pricing Tool</title>
+<title>Ductline Quote</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -209,7 +209,7 @@ main{padding:18px 20px;max-width:1280px;margin:0 auto;}
       <div class="login-logo-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0e0f11" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
       </div>
-      Duct<span>Calc</span>
+      Ductline <span>Quote</span>
     </div>
     <div class="login-sub">Duct Manufacturing Pricing Tool</div>
     <label class="login-label">Password</label>
@@ -227,7 +227,7 @@ main{padding:18px 20px;max-width:1280px;margin:0 auto;}
     <div class="logo-icon">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0e0f11" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
     </div>
-    Duct<span>Calc</span>
+    Ductline <span>Quote</span>
   </div>
   <div class="header-rates">
     <span style="color:var(--text3);font-size:10px;flex-shrink:0">Steel ₹/kg →</span>
@@ -849,8 +849,8 @@ function exportCSV(){
 // ══════════════════════
 function buildSnap(){
   const tk=document.getElementById('dtype').value; const dt=DT[tk]; const rates=getRates();
-  const qtys={},costs={};
-  dt.gauges.forEach(g=>{ const q=parseFloat(document.getElementById('q_'+gid(g))?.value)||0; qtys[g]=q; costs[g]=calcGauge(tk,g,rates); });
+  const qtys={},costs={},sizes={};
+  dt.gauges.forEach(g=>{ const q=parseFloat(document.getElementById('q_'+gid(g))?.value)||0; qtys[g]=q; costs[g]=calcGauge(tk,g,rates); sizes[g]=document.getElementById('sz_'+gid(g))?.value||''; });
   const rev=dt.gauges.reduce((s,g)=>s+costs[g].quote*qtys[g],0);
   const cost=dt.gauges.reduce((s,g)=>s+costs[g].total*qtys[g],0);
   const kg=dt.gauges.reduce((s,g)=>s+costs[g].wt*qtys[g],0);
