@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<!-- DuctlineQuote v3.2 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ductline Quote</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -635,10 +638,12 @@ function recalc(){
   const rates=getRates();
 
   // save existing qtys before re-render
-  const savedQty={};
+  const savedQty={}, savedSz={};
   dt.gauges.forEach(g=>{
     const el=document.getElementById('q_'+gid(g));
     if(el) savedQty[g]=el.value;
+    const sz=document.getElementById('sz_'+gid(g));
+    if(sz) savedSz[g]=sz.value;
   });
 
   // Qty table
@@ -646,7 +651,7 @@ function recalc(){
   dt.gauges.forEach(g=>{
     const c=calcGauge(tk,g,rates);
     const qty=parseFloat(savedQty[g])||0;
-    const savedSize = document.getElementById('sz_'+gid(g))?.value||'';
+    const savedSize = savedSz[g]||'';
     qb.innerHTML+=`<tr>
       <td>${g}</td>
       <td><input type="text" id="sz_${gid(g)}" value="${savedSize}" placeholder="e.g. 400-550 DIA" style="background:var(--surface3);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:'Barlow',sans-serif;font-size:11px;padding:4px 7px;width:140px;outline:none;"></td>
@@ -659,7 +664,10 @@ function recalc(){
   });
 
   // restore values
-  dt.gauges.forEach(g=>{ const el=document.getElementById('q_'+gid(g)); if(el&&savedQty[g]!==undefined) el.value=savedQty[g]; });
+  dt.gauges.forEach(g=>{
+    const el=document.getElementById('q_'+gid(g)); if(el&&savedQty[g]!==undefined) el.value=savedQty[g];
+    const sz=document.getElementById('sz_'+gid(g)); if(sz&&savedSz[g]!==undefined) sz.value=savedSz[g];
+  });
 
   // gather results
   let tQty=0,tRev=0,tCost=0,tKg=0;
@@ -891,147 +899,203 @@ function genPDF(o){
   if(!window.jspdf||!window.jspdf.jsPDF){ toast('PDF library not loaded - check internet connection','error'); return; }
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  const W=210, m=14, contentW=W-m*2;
+  const W=210, m=12, contentW=W-m*2;
 
-  // ── HEADER ───────────────────────────────────────────────
-  // White background header with logo left, info right
-  doc.setFillColor(255,255,255);
-  doc.rect(0,0,W,36,'F');
-  // Bottom border line on header
-  doc.setDrawColor(20,20,20);
-  doc.setLineWidth(0.8);
-  doc.line(0,36,W,36);
+  // =========================================================
+  // HEADER   full black band, logo left, info right
+  // =========================================================
+  const hdrH=40;
+  doc.setFillColor(10,10,10);
+  doc.rect(0,0,W,hdrH,'F');
 
-  // Logo — white bg so it blends
-  doc.addImage(LOGO_B64,'PNG',m,2,44,30);
+  // Logo on black (logo PNG has black bg   blends perfectly)
+  doc.addImage(LOGO_B64,'PNG',m,2,48,34);
 
-  // Company info right side
-  doc.setTextColor(20,20,20);
-  doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text('DUCTLINE MANUFACTURING',W-m,10,{align:'right'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(80,80,80);
-  doc.text('Material as per IS 277 - Grade VIII - Jindal (120 gsm)',W-m,16,{align:'right'});
-  doc.setFontSize(7.5); doc.setTextColor(20,20,20);
-  doc.text('DATE: '+formatDate(o.date),W-m,23,{align:'right'});
-  doc.text('Ref: '+(o.jobNo||'--'),W-m,29,{align:'right'});
+  // Thin white vertical divider
+  doc.setDrawColor(255,255,255);
+  doc.setLineWidth(0.3);
+  doc.line(m+52,6,m+52,hdrH-6);
 
-  // ── QUOTATION TITLE BAND ──────────────────────────────────
-  doc.setFillColor(20,20,20);
-  doc.rect(0,36,W,8,'F');
+  // Company name + tagline
   doc.setTextColor(255,255,255);
-  doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text('QUOTATION',W/2,41.5,{align:'center'});
+  doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('DUCTLINE MANUFACTURING',m+57,14);
+  doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.setTextColor(160,160,160);
+  doc.text('Material as per IS 277 - Grade VIII - Jindal (120 gsm)',m+57,21);
 
-  // ── CUSTOMER BLOCK ────────────────────────────────────────
-  let y=50;
+  // Date + Ref top right
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('DATE: '+formatDate(o.date),W-m,14,{align:'right'});
+  doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.setTextColor(160,160,160);
+  doc.text('Ref: '+(o.jobNo||'--'),W-m,21,{align:'right'});
+
+  // QUOTATION label bottom of header band
+  doc.setFillColor(255,255,255);
+  doc.rect(0,hdrH-7,W,7,'F');
+  doc.setTextColor(10,10,10);
+  doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+  doc.text('Q U O T A T I O N',W/2,hdrH-2.5,{align:'center'});
+
+  // =========================================================
+  // CUSTOMER BLOCK
+  // =========================================================
+  let y=hdrH+5;
+
+  // Left column   To
   doc.setFillColor(245,245,245);
-  doc.rect(m,y,contentW,20,'F');
-  doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
-  doc.rect(m,y,contentW,20,'S');
+  doc.rect(m,y,contentW*0.6,18,'F');
+  doc.setDrawColor(10,10,10); doc.setLineWidth(0.4);
+  doc.line(m,y,m+contentW*0.6,y);       // top
+  doc.line(m,y+18,m+contentW*0.6,y+18); // bottom
+  doc.line(m,y,m,y+18);                 // left
 
-  // To label
-  doc.setTextColor(80,80,80); doc.setFontSize(7); doc.setFont('helvetica','bold');
-  doc.text('TO',m+3,y+6);
-  // Customer name
-  doc.setTextColor(10,10,10); doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text(o.customer||'--',m+12,y+7);
-  // Project ref below
-  if(o.projref && o.projref.trim()){
-    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
-    doc.text(o.projref,m+12,y+13);
+  doc.setTextColor(100,100,100); doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+  doc.text('TO',m+3,y+5.5);
+  doc.setTextColor(10,10,10); doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text(o.customer||'--',m+3,y+12);
+  if(o.projref&&o.projref.trim()){
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80);
+    doc.text(o.projref,m+3,y+17);
   }
-  // Duct type right side
-  doc.setTextColor(80,80,80); doc.setFontSize(7); doc.setFont('helvetica','normal');
-  doc.text('Duct Type:',W-m-50,y+6);
-  doc.setTextColor(20,20,20); doc.setFont('helvetica','bold'); doc.setFontSize(8);
-  doc.text(o.typeLabel,W-m-50,y+12);
 
-  // ── ITEMS TABLE ───────────────────────────────────────────
-  y=76;
+  // Right column   Duct type
+  const rx=m+contentW*0.6+3;
+  doc.setTextColor(100,100,100); doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+  doc.text('DUCT TYPE',rx,y+5.5);
+  doc.setTextColor(10,10,10); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text(o.typeLabel,rx,y+13);
 
-  // Column definitions — adjusted so Amount fits
-  // Sr(8) | DuctSize(38) | Gauge(35) | Unit(14) | Qty(18) | Price(24) | Amount(W-m-8-38-35-14-18-24)
-  const cX = [m,    m+8,  m+46, m+81, m+95, m+113, m+137];
-  const cW = [8,    38,   35,   14,   18,   24,    contentW-123];
-  const hdr= ['Sr','Duct Size','Gauge & Nominal','Unit','Qty','Price/sqm','Amount'];
+  y+=24;
 
-  // Table header
-  doc.setFillColor(20,20,20);
-  doc.rect(m,y-5,contentW,8,'F');
+  // =========================================================
+  // ITEMS TABLE
+  // =========================================================
+  // Cols: Sr | Duct Size | Gauge & Nominal | Qty | Price/sqm | Amount
+  const cX=[m,   m+9,  m+50, m+92, m+110, m+134];
+  const cW=[9,   41,   42,   18,   24,    contentW-122];
+  const cols=['Sr','Duct Size / Description','Gauge & Nominal','Qty (sqm)','Price/sqm','Amount (Rs.)'];
+
+  // Header row   solid black
+  const tHdrH=8;
+  doc.setFillColor(10,10,10);
+  doc.rect(m,y,contentW,tHdrH,'F');
   doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
-  // Left-align Sr and Duct Size, center others
-  doc.text('Sr',cX[0]+cW[0]/2,y,{align:'center'});
-  doc.text('Duct Size / Description',cX[1]+2,y);
-  doc.text('Gauge & Nominal',cX[2]+cW[2]/2,y,{align:'center'});
-  doc.text('Unit',cX[3]+cW[3]/2,y,{align:'center'});
-  doc.text('Qty',cX[4]+cW[4],y,{align:'right'});
-  doc.text('Price/sqm',cX[5]+cW[5],y,{align:'right'});
-  doc.text('Amount (Rs.)',cX[6]+cW[6],y,{align:'right'});
-  y+=5;
+  doc.text(cols[0],cX[0]+cW[0]/2,y+5.2,{align:'center'});
+  doc.text(cols[1],cX[1]+2,y+5.2);
+  doc.text(cols[2],cX[2]+cW[2]/2,y+5.2,{align:'center'});
+  doc.text(cols[3],cX[3]+cW[3],y+5.2,{align:'right'});
+  doc.text(cols[4],cX[4]+cW[4],y+5.2,{align:'right'});
+  doc.text(cols[5],cX[5]+cW[5],y+5.2,{align:'right'});
+  y+=tHdrH;
 
-  // Data rows
+  // Outer table border
+  doc.setDrawColor(10,10,10); doc.setLineWidth(0.5);
+
   let srNo=1; let basicTotal=0;
   const gaugesWithQty=(o.gauges||[]).filter(g=>(o.qtys[g]||0)>0);
+  const rowH=9;
+
   gaugesWithQty.forEach((g,idx)=>{
     const qty=o.qtys[g]||0, qp=o.costs[g].quote, amt=qty*qp;
     basicTotal+=amt;
-    // Alternating rows
-    if(idx%2===0){doc.setFillColor(250,250,250);}else{doc.setFillColor(255,255,255);}
-    doc.rect(m,y,contentW,8,'F');
-    doc.setDrawColor(220,220,220); doc.setLineWidth(0.15);
-    doc.line(m,y+8,m+contentW,y+8);
+
+    // Subtle alternating   white / very light grey
+    doc.setFillColor(idx%2===0?255:248, idx%2===0?255:248, idx%2===0?255:248);
+    doc.rect(m,y,contentW,rowH,'F');
+
+    // Bottom rule   thin grey except last row gets dark
+    const isLast = idx===gaugesWithQty.length-1;
+    doc.setDrawColor(isLast?10:200, isLast?10:200, isLast?10:200);
+    doc.setLineWidth(isLast?0.5:0.2);
+    doc.line(m,y+rowH,m+contentW,y+rowH);
 
     const gaugeNom=g==='24G(0.63)'?'24G - 0.63 mm':
       g==='24G'?'24G - 0.60 mm':g==='22G'?'22G - 0.80 mm':
       g==='20G'?'20G - 1.00 mm':g==='18G'?'18G - 1.25 mm':
       g==='26G'?'26G - 0.55 mm':g;
-    const ductSize=(o.sizes&&o.sizes[g]&&o.sizes[g].trim())?o.sizes[g]:'--';
+    const rawSize=(o.sizes&&o.sizes[g]&&o.sizes[g].trim())?o.sizes[g]:'';
+    const dsText=rawSize.length>22?rawSize.substring(0,21)+'.':rawSize;
 
-    doc.setTextColor(30,30,30); doc.setFontSize(8); doc.setFont('helvetica','normal');
-    doc.text(String(srNo),cX[0]+cW[0]/2,y+5.5,{align:'center'});
+    // Sr number in a small black circle style   just bold number
+    doc.setTextColor(10,10,10); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+    doc.text(String(srNo),cX[0]+cW[0]/2,y+6,{align:'center'});
 
-    // Truncate duct size if too long
-    const dsText = ductSize.length>20 ? ductSize.substring(0,19)+'.' : ductSize;
-    doc.text(dsText,cX[1]+2,y+5.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text(dsText,cX[1]+2,y+6);
 
-    doc.text(gaugeNom,cX[2]+cW[2]/2,y+5.5,{align:'center'});
-    doc.text('SqMtr',cX[3]+cW[3]/2,y+5.5,{align:'center'});
-    doc.text(f2(qty),cX[4]+cW[4],y+5.5,{align:'right'});
-    doc.text(f2(qp),cX[5]+cW[5],y+5.5,{align:'right'});
-    doc.setFont('helvetica','bold');
-    doc.text(f2(amt),cX[6]+cW[6],y+5.5,{align:'right'});
-    doc.setFont('helvetica','normal');
-    y+=8; srNo++;
+    // Gauge   slightly smaller
+    doc.setFontSize(7.5);
+    doc.text(gaugeNom,cX[2]+cW[2]/2,y+6,{align:'center'});
+
+    doc.text(f2(qty),cX[3]+cW[3],y+6,{align:'right'});
+    doc.text(f2(qp),cX[4]+cW[4],y+6,{align:'right'});
+
+    // Amount   bold, right aligned
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text(f2(amt),cX[5]+cW[5],y+6,{align:'right'});
+
+    y+=rowH; srNo++;
   });
 
-  // ── TOTALS ────────────────────────────────────────────────
-  y+=4;
+  // Left + right border of table
+  doc.setDrawColor(10,10,10); doc.setLineWidth(0.5);
+  const tableTop=hdrH+29;
+  doc.line(m,tableTop,m,y);
+  doc.line(m+contentW,tableTop,m+contentW,y);
+
+  // Vertical col dividers (header only)
+  doc.setDrawColor(60,60,60); doc.setLineWidth(0.2);
+  [cX[1],cX[2],cX[3],cX[4],cX[5]].forEach(cx=>{
+    doc.line(cx,tableTop,cx,tableTop+tHdrH);
+  });
+
+  // =========================================================
+  // TOTALS
+  // =========================================================
+  y+=2;
   const gstPct=o.gstPct||18;
   const gstAmt=basicTotal*gstPct/100;
   const grandTotal=basicTotal+gstAmt;
 
-  // Total rows
-  [
-    [false,'Total Basic Amount Rs/-',basicTotal],
-    [false,'GST @ '+gstPct+'%',gstAmt],
-    [true, 'Grand Total Rs/-',grandTotal],
-  ].forEach(([isBold,lbl,val])=>{
-    if(isBold){ doc.setFillColor(20,20,20); doc.rect(m,y,contentW,8,'F'); }
-    else{ doc.setFillColor(240,240,240); doc.rect(m,y,contentW,7,'F'); }
-    const h=isBold?8:7;
-    doc.setTextColor(isBold?255:40,isBold?255:40,isBold?255:40);
-    doc.setFontSize(isBold?9:8); doc.setFont('helvetica',isBold?'bold':'normal');
-    doc.text(lbl,m+3,y+(h*0.65));
-    doc.setFont('helvetica','bold');
-    doc.text('Rs. '+f2(val),m+contentW,y+(h*0.65),{align:'right'});
-    y+=h;
-  });
-
-  // ── TERMS ─────────────────────────────────────────────────
+  // Subtotal row
+  doc.setFillColor(235,235,235);
+  doc.rect(m,y,contentW,7,'F');
+  doc.setTextColor(40,40,40); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  doc.text('Total Basic Amount',m+3,y+5);
+  doc.setFont('helvetica','bold');
+  doc.text('Rs. '+f2(basicTotal),m+contentW,y+5,{align:'right'});
   y+=7;
-  doc.setFillColor(20,20,20); doc.rect(m,y,contentW,7,'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
-  doc.text('TERMS AND CONDITIONS',m+3,y+4.8);
+
+  // GST row
+  doc.setFillColor(235,235,235);
+  doc.rect(m,y,contentW,7,'F');
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.2);
+  doc.line(m,y,m+contentW,y);
+  doc.setTextColor(40,40,40); doc.setFont('helvetica','normal');
+  doc.text('GST @ '+gstPct+'%',m+3,y+5);
+  doc.setFont('helvetica','bold');
+  doc.text('Rs. '+f2(gstAmt),m+contentW,y+5,{align:'right'});
+  y+=7;
+
+  // Grand total   full black
+  doc.setFillColor(10,10,10);
+  doc.rect(m,y,contentW,10,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('GRAND TOTAL',m+3,y+6.8);
+  doc.text('Rs. '+f2(grandTotal),m+contentW,y+6.8,{align:'right'});
+  y+=14;
+
+  // =========================================================
+  // TERMS & CONDITIONS
+  // =========================================================
+  // Section header   black left bar style
+  doc.setFillColor(10,10,10);
+  doc.rect(m,y,3,6,'F');
+  doc.setTextColor(10,10,10); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('TERMS AND CONDITIONS',m+6,y+4.5);
   y+=10;
 
   const validity=o.validity||15;
@@ -1044,28 +1108,35 @@ function genPDF(o){
     'H-Frame & Fixing included in above price.',
     'Price Validity: '+validity+' Days.',
   ];
-  doc.setTextColor(30,30,30); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-  terms.forEach((t,i)=>{
-    doc.text((i+1)+'.  '+t,m+3,y); y+=5.5;
-  });
+  doc.setTextColor(40,40,40); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  terms.forEach((t,i)=>{ doc.text((i+1)+'.  '+t,m+3,y); y+=5.2; });
 
-  // ── CONTACT FOOTER ────────────────────────────────────────
-  y+=5;
-  doc.setDrawColor(20,20,20); doc.setLineWidth(0.5);
+  // =========================================================
+  // CONTACT FOOTER
+  // =========================================================
+  y+=4;
+  doc.setDrawColor(10,10,10); doc.setLineWidth(0.4);
   doc.line(m,y,m+contentW,y);
   y+=5;
-  doc.setFontSize(7.5); doc.setTextColor(20,20,20);
-  doc.setFont('helvetica','bold'); doc.text('Email:',m,y);
-  doc.setFont('helvetica','normal'); doc.text('info@ductline.in,  accounts@ductline.in',m+14,y);
-  y+=5;
-  doc.setFont('helvetica','bold'); doc.text('Contact:',m,y);
-  doc.setFont('helvetica','normal');
-  doc.text('Shiva Kumar B M: +91 9731762658   P. Nagendra: +91 9014607177   Arvind: +91 9160484166',m+18,y);
 
-  // ── BOTTOM BAND ───────────────────────────────────────────
-  doc.setFillColor(20,20,20); doc.rect(0,287,W,10,'F');
-  doc.setTextColor(180,180,180); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
-  doc.text('DUCTLINE MANUFACTURING  |  info@ductline.in  |  This quotation is computer generated',W/2,293,{align:'center'});
+  doc.setFontSize(7.5);
+  doc.setTextColor(10,10,10); doc.setFont('helvetica','bold');
+  doc.text('Email:',m,y);
+  doc.setFont('helvetica','normal'); doc.setTextColor(40,40,40);
+  doc.text('info@ductline.in   accounts@ductline.in',m+14,y);
+  y+=5;
+  doc.setFont('helvetica','bold'); doc.setTextColor(10,10,10);
+  doc.text('Contact:',m,y);
+  doc.setFont('helvetica','normal'); doc.setTextColor(40,40,40);
+  doc.text('Shiva Kumar: +91 9731762658   P. Nagendra: +91 9014607177   Arvind: +91 9160484166',m+18,y);
+
+  // =========================================================
+  // BOTTOM BAND
+  // =========================================================
+  doc.setFillColor(10,10,10);
+  doc.rect(0,287,W,10,'F');
+  doc.setTextColor(140,140,140); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+  doc.text('DUCTLINE MANUFACTURING   info@ductline.in   This quotation is computer generated',W/2,293,{align:'center'});
 
   doc.save('Ductline_Quote_'+(o.customer||'Draft').replace(/\s/g,'_')+'_'+o.date+'.pdf');
   toast('PDF exported','success');
