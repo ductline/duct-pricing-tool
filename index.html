@@ -974,11 +974,13 @@ function genPDF(o){
   // ITEMS TABLE
   // =========================================================
   // Cols: Sr | Duct Size | Gauge & Nominal | Qty | Price/sqm | Amount
-  const cX=[m,   m+9,  m+50, m+92, m+110, m+134];
-  const cW=[9,   41,   42,   18,   24,    contentW-122];
+  // Cols: Sr(8) DuctSize(42) Gauge(40) Qty(20) Price(28) Amount(48) = 186 = contentW
+  const cX=[m,   m+8,  m+50, m+90, m+110, m+138];
+  const cW=[8,   42,   40,   20,   28,    48];
   const cols=['Sr','Duct Size / Description','Gauge & Nominal','Qty (sqm)','Price/sqm','Amount (Rs.)'];
 
   // Header row   solid black
+  const tableStartY=y;
   const tHdrH=8;
   doc.setFillColor(10,10,10);
   doc.rect(m,y,contentW,tHdrH,'F');
@@ -1042,9 +1044,8 @@ function genPDF(o){
 
   // Left + right border of table
   doc.setDrawColor(10,10,10); doc.setLineWidth(0.5);
-  const tableTop=hdrH+29;
-  doc.line(m,tableTop,m,y);
-  doc.line(m+contentW,tableTop,m+contentW,y);
+  doc.line(m,tableStartY,m,y);
+  doc.line(m+contentW,tableStartY,m+contentW,y);
 
   // Vertical col dividers (header only)
   doc.setDrawColor(60,60,60); doc.setLineWidth(0.2);
