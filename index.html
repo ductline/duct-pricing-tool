@@ -266,6 +266,9 @@ main{padding:18px 20px;max-width:1280px;margin:0 auto;}
       <div class="mf"><label>Job / Order No.</label><input type="text" id="jobno" placeholder="JOB-001"></div>
       <div class="mf"><label>Date</label><input type="date" id="odate"></div>
       <div class="mf"><label>Prepared By</label><input type="text" id="prep" placeholder="Your name"></div>
+      <div class="mf"><label>Customer Ref / Project</label><input type="text" id="projref" placeholder="e.g. HSBC - Block A"></div>
+      <div class="mf"><label>GST %</label><input type="number" id="gstpct" value="18" min="0" max="28" step="0.5"></div>
+      <div class="mf"><label>Price Validity (days)</label><input type="number" id="validity" value="15" min="1"></div>
     </div>
     <div class="config-row">
       <div class="mf">
@@ -306,7 +309,7 @@ main{padding:18px 20px;max-width:1280px;margin:0 auto;}
     <div class="ct"><div class="ct-l">Quantities (sqm per gauge)</div></div>
     <table class="gt">
       <thead><tr>
-        <th>Gauge</th><th>Density g/cm³</th><th>Weight kg/sqm</th>
+        <th>Gauge</th><th>Duct Size / Description</th><th>Weight kg/sqm</th>
         <th>Steel ₹/kg</th><th>Raw Mat ₹/sqm</th><th>Quantity (sqm)</th><th>Raw Mat Total</th>
       </tr></thead>
       <tbody id="qbody"></tbody>
@@ -324,7 +327,7 @@ main{padding:18px 20px;max-width:1280px;margin:0 auto;}
     <table class="gt">
       <thead><tr>
         <th>Gauge</th><th>Raw Material</th><th>Plasma Cut</th>
-        <th>Accessories</th><th>Labour / MC</th><th>Overhead</th><th>Total Cost/sqm</th>
+        <th>Accessories</th><th>Labour / MC</th><th>Total Cost/sqm</th>
       </tr></thead>
       <tbody id="cbody"></tbody>
     </table>
@@ -362,6 +365,7 @@ main{padding:18px 20px;max-width:1280px;margin:0 auto;}
   <div class="brow">
     <button class="btn btn-p" onclick="saveOrder()">💾 Save to History</button>
     <button class="btn btn-g" onclick="exportPDF()">📄 Export PDF</button>
+    <button class="btn btn-g" onclick="sendEmail()">✉️ Send Email</button>
     <button class="btn btn-g" onclick="clearForm()">↺ Clear</button>
   </div>
 
@@ -436,6 +440,7 @@ main{padding:18px 20px;max-width:1280px;margin:0 auto;}
     <div id="mbody"></div>
     <div class="brow" style="margin-top:18px">
       <button class="btn btn-p" style="font-size:11px;padding:6px 13px" onclick="exportOrderPDF(curM)">Export PDF</button>
+      <button class="btn btn-g" style="font-size:11px;padding:6px 13px" onclick="sendOrderEmail(curM)">✉️ Email</button>
       <button class="btn btn-g" style="font-size:11px;padding:6px 13px" onclick="loadOrder(curM);closeM();showPage('q')">Load to Form</button>
       <button class="btn btn-d" style="font-size:11px;padding:6px 13px" onclick="delOrder(curM);closeM()">Delete</button>
     </div>
@@ -619,9 +624,10 @@ function recalc(){
   dt.gauges.forEach(g=>{
     const c=calcGauge(tk,g,rates);
     const qty=parseFloat(savedQty[g])||0;
+    const savedSize = document.getElementById('sz_'+gid(g))?.value||'';
     qb.innerHTML+=`<tr>
       <td>${g}</td>
-      <td style="color:var(--text2)">${dt.density}</td>
+      <td><input type="text" id="sz_${gid(g)}" value="${savedSize}" placeholder="e.g. 400-550 DIA" style="background:var(--surface3);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 7px;width:140px;outline:none;"></td>
       <td>${f2(c.wt)}</td>
       <td>₹${f2(c.rate)}</td>
       <td>₹${f2(c.raw)}</td>
@@ -658,7 +664,6 @@ function recalc(){
       <td>₹${f2(c.plasma)}<span style="color:var(--text3);font-size:9px"> (${(DT[tk].plasma[g]*100).toFixed(0)}%)</span></td>
       <td>₹${f2(c.acc)}</td>
       <td>₹${f2(c.lab)}</td>
-      <td>₹${f2(c.oh)}<span style="color:var(--text3);font-size:9px"> (${(DT[tk].ohp[g]*100).toFixed(0)}%)</span></td>
       <td class="hi">₹${f2(c.total)}</td>
     </tr>`;
   });
@@ -718,7 +723,8 @@ function saveOrder(){
   const tk=document.getElementById('dtype').value;
   const dt=DT[tk]; const rates=getRates();
   let tQty=0; const qtys={}, costs={};
-  dt.gauges.forEach(g=>{ const q=parseFloat(document.getElementById('q_'+gid(g))?.value)||0; qtys[g]=q; tQty+=q; costs[g]=calcGauge(tk,g,rates); });
+  const sizes={};
+  dt.gauges.forEach(g=>{ const q=parseFloat(document.getElementById('q_'+gid(g))?.value)||0; qtys[g]=q; tQty+=q; costs[g]=calcGauge(tk,g,rates); sizes[g]=document.getElementById('sz_'+gid(g))?.value||''; });
   if(!tQty){toast('Add at least one quantity','error');return;}
   const cust=document.getElementById('cust').value.trim();
   if(!cust){toast('Enter customer name','error');return;}
@@ -729,7 +735,7 @@ function saveOrder(){
     id:Date.now(),customer:cust,jobNo:document.getElementById('jobno').value.trim(),
     date:document.getElementById('odate').value||new Date().toISOString().slice(0,10),
     prepBy:document.getElementById('prep').value.trim(),
-    tk,typeLabel:dt.label,profit:curP,qtys,costs,
+    tk,typeLabel:dt.label,profit:curP,qtys,costs,sizes,
     revenue:rev,totalCost:cost,totalKg:kg,profitRs:rev-cost,
     margin:rev>0?(rev-cost)/rev:0,
     rates:JSON.parse(JSON.stringify(rates)),
@@ -824,7 +830,7 @@ function loadOrder(id){
   document.getElementById('dtype').value=o.tk;
   if(o.rates){ ['26G','24G','22G','20G','18G'].forEach(g=>{ const n=g.replace('G',''); const el=document.getElementById('r'+n); if(el&&o.rates[g]) el.value=o.rates[g]; }); }
   setP(o.profit); recalc();
-  setTimeout(()=>{ DT[o.tk].gauges.forEach(g=>{ const el=document.getElementById('q_'+gid(g)); if(el) el.value=o.qtys[g]||0; }); recalc(); },80);
+  setTimeout(()=>{ DT[o.tk].gauges.forEach(g=>{ const el=document.getElementById('q_'+gid(g)); if(el) el.value=o.qtys[g]||0; const sz=document.getElementById('sz_'+gid(g)); if(sz&&o.sizes) sz.value=o.sizes[g]||''; }); recalc(); },80);
   toast('Order loaded','success');
 }
 
@@ -850,7 +856,7 @@ function buildSnap(){
   const kg=dt.gauges.reduce((s,g)=>s+costs[g].wt*qtys[g],0);
   return {customer:document.getElementById('cust').value||'Draft',jobNo:document.getElementById('jobno').value,
     date:document.getElementById('odate').value||new Date().toISOString().slice(0,10),prepBy:document.getElementById('prep').value,
-    tk,typeLabel:dt.label,profit:curP,qtys,costs,revenue:rev,totalCost:cost,totalKg:kg,
+    tk,typeLabel:dt.label,profit:curP,qtys,costs,sizes,revenue:rev,totalCost:cost,totalKg:kg,
     profitRs:rev-cost,margin:rev>0?(rev-cost)/rev:0,gauges:dt.gauges};
 }
 function exportPDF(){ genPDF(buildSnap()); }
@@ -859,52 +865,148 @@ function exportOrderPDF(id){ const o=orders.find(x=>x.id===id); if(o) genPDF({..
 function genPDF(o){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  const W=210,m=14;
-  doc.setFillColor(14,15,17); doc.rect(0,0,W,28,'F');
-  doc.setTextColor(240,192,64); doc.setFontSize(17); doc.setFont('helvetica','bold'); doc.text('DuctCalc',m,12);
-  doc.setTextColor(180,180,180); doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text(o.typeLabel,m,20);
-  doc.text('Margin: '+o.profit+'%  |  '+new Date().toLocaleDateString('en-IN'),W-m,20,{align:'right'});
-  let y=35;
-  [['Customer',o.customer],['Job No.',o.jobNo||'—'],['Date',o.date],['Prepared By',o.prepBy||'—']].forEach(([l,v],i)=>{
-    const x=m+(i%2)*90; if(i===2) y+=13;
-    doc.setTextColor(120,120,120); doc.setFontSize(7); doc.text(l.toUpperCase(),x,y);
-    doc.setTextColor(20,20,20); doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.text(v,x,y+5);
+  const W=210, m=14, rCol=W-m; // right edge
+
+  // ── HEADER BAND ──────────────────────────────────────────
+  doc.setFillColor(26,82,118); doc.rect(0,0,W,26,'F');
+  // Company name
+  doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('DUCTLINE MANUFACTURING',m,11);
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.setTextColor(200,220,255);
+  doc.text('Material as per IS 277 - Grade VIII - Jindal (120 gsm)',m,17);
+  // Date top right
+  doc.setTextColor(255,220,50); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('DATE: '+formatDate(o.date), rCol, 11, {align:'right'});
+  doc.setTextColor(200,220,255); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text('Quotation Ref: '+(o.jobNo||'—'), rCol, 17, {align:'right'});
+
+  // ── CUSTOMER INFO ─────────────────────────────────────────
+  let y = 32;
+  doc.setFillColor(240,248,255); doc.rect(m,y-5,W-m*2,16,'F');
+  doc.setDrawColor(26,82,118); doc.setLineWidth(0.5); doc.rect(m,y-5,W-m*2,16,'S');
+  doc.setTextColor(26,82,118); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('To:', m+3, y);
+  doc.setTextColor(30,30,30); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(o.customer||'—', m+14, y);
+  if(o.projref){ doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80); doc.text(o.projref, m+14, y+5); }
+  doc.setTextColor(26,82,118); doc.setFontSize(8); doc.setFont('helvetica','italic');
+  doc.text('Duct Type: '+o.typeLabel, rCol, y, {align:'right'});
+
+  // ── ITEMS TABLE ───────────────────────────────────────────
+  y = 52;
+  const colX  = [m,   m+8, m+46, m+86, m+118, m+130, m+145, m+163];
+  const colW  = [8,   38,  40,   32,   12,    15,    18,    W-m-163];
+  const hdrs  = ['Sr','Duct Size','Gauge & Nominal','Flange / Type','Unit','Qty','Price (₹)','Amount (₹)'];
+
+  // header row
+  doc.setFillColor(26,82,118);
+  doc.rect(m, y-5, W-m*2, 7, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
+  hdrs.forEach((h,i)=>{ doc.text(h, colX[i]+colW[i]/2, y, {align:'center'}); });
+  y+=5;
+
+  // data rows — only gauges with qty > 0
+  let srNo=1; let basicTotal=0;
+  const gaugesWithQty = o.gauges.filter(g=>(o.qtys[g]||0)>0);
+  gaugesWithQty.forEach((g,idx)=>{
+    const qty=o.qtys[g]||0, qp=o.costs[g].quote, amt=qty*qp;
+    basicTotal+=amt;
+    if(idx%2===0){doc.setFillColor(245,250,255);}else{doc.setFillColor(255,255,255);}
+    doc.rect(m,y,W-m*2,8,'F');
+    doc.setDrawColor(200,215,230); doc.setLineWidth(0.2);
+    doc.line(m,y+8,m+W-m*2,y+8);
+
+    doc.setTextColor(30,30,30); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    const gaugeNom = g==='24G(0.63)'?'24G - 0.63 mm':
+      g==='24G'?'24G - 0.60 mm':g==='22G'?'22G - 0.80 mm':
+      g==='20G'?'20G - 1.00 mm':g==='18G'?'18G - 1.25 mm':
+      g==='26G'?'26G - 0.55 mm':g;
+    const ductSize = (o.sizes&&o.sizes[g])||'—';
+
+    doc.text(String(srNo), colX[0]+colW[0]/2, y+5.5, {align:'center'});
+    doc.text(ductSize, colX[1]+2, y+5.5);
+    doc.text(gaugeNom, colX[2]+colW[2]/2, y+5.5, {align:'center'});
+    doc.text(o.typeLabel, colX[3]+colW[3]/2, y+5.5, {align:'center'});
+    doc.text('SqMtr', colX[4]+colW[4]/2, y+5.5, {align:'center'});
+    doc.text(f2(qty), colX[5]+colW[5], y+5.5, {align:'right'});
+    doc.text(f2(qp), colX[6]+colW[6], y+5.5, {align:'right'});
+    doc.setFont('helvetica','bold');
+    doc.text(f2(amt), colX[7]+colW[7], y+5.5, {align:'right'});
     doc.setFont('helvetica','normal');
+    y+=8; srNo++;
   });
-  y+=17;
-  doc.setFillColor(240,192,64); doc.rect(m,y,W-m*2,5.5,'F');
-  doc.setTextColor(14,15,17); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('COST BREAKDOWN & QUOTE PRICES',m+2,y+3.8); y+=9;
-  const cols=[16,18,20,18,16,16,16,20,20]; const hdrs=['Gauge','Wt/sqm','Raw Mat','Plasma','Acc','Labour','OH','Cost/sqm','Quote/sqm'];
-  doc.setFillColor(245,245,245); doc.rect(m,y-4,W-m*2,5.5,'F');
-  doc.setTextColor(80,80,80); doc.setFontSize(6.5); doc.setFont('helvetica','bold');
-  let x=m; hdrs.forEach((h,i)=>{doc.text(h,x+cols[i]/2,y,{align:'center'});x+=cols[i];}); y+=2.5;
-  o.gauges.forEach((g,idx)=>{
-    const q=o.qtys[g]||0,c=o.costs[g];
-    if(idx%2===0){doc.setFillColor(252,252,252);doc.rect(m,y,W-m*2,6.5,'F');}
-    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30);
-    x=m; [g,f2(c.wt),'₹'+f2(c.raw),'₹'+f2(c.plasma),'₹'+f2(c.acc),'₹'+f2(c.lab),'₹'+f2(c.oh),'₹'+f2(c.total),'₹'+f2(c.quote)].forEach((v,i)=>{
-      if(i===8){doc.setTextColor(160,100,0);doc.setFont('helvetica','bold');}
-      doc.text(v,x+cols[i]/2,y+4.8,{align:'center'}); doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');x+=cols[i];});
-    y+=6.5;
+
+  // ── TOTALS ────────────────────────────────────────────────
+  y+=3;
+  const gstPct = o.gstPct||18;
+  const gstAmt = basicTotal * gstPct/100;
+  const grandTotal = basicTotal + gstAmt;
+
+  const totRows=[
+    ['Total Basic Amount Rs/-', basicTotal],
+    ['GST @ '+gstPct+'%', gstAmt],
+    ['Grand Total Rs/-', grandTotal],
+  ];
+  totRows.forEach(([lbl,val],i)=>{
+    const isGrand = i===2;
+    if(isGrand){doc.setFillColor(26,82,118);}else{doc.setFillColor(235,245,255);}
+    doc.rect(m,y,W-m*2,7,'F');
+    doc.setTextColor(isGrand?255:30,isGrand?255:30,isGrand?255:30);
+    doc.setFontSize(isGrand?9:8); doc.setFont('helvetica', isGrand?'bold':'normal');
+    doc.text(lbl, m+3, y+5);
+    doc.setFont('helvetica','bold');
+    doc.text('Rs. '+f2(val), rCol, y+5, {align:'right'});
+    y+=7;
   });
+
+  // ── TERMS ─────────────────────────────────────────────────
+  y+=6;
+  doc.setFillColor(26,82,118); doc.rect(m,y,W-m*2,6,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('TERMS AND CONDITIONS', m+3, y+4.2);
+  y+=9;
+
+  const validity = o.validity||15;
+  const terms=[
+    'Above quoted prices are only for the supply of materials.',
+    'Payment Terms: 45 Days PDC',
+    'Dispatch Schedule: Ducting as per schedule after confirmation of Drawing.',
+    'Freight — Extra at actual.',
+    'TDF Corner, Carriage Bolts, Nuts, Gasket, Clits included in above price.',
+    'H-Frame & Fixing included in above price.',
+    'Price Validity: '+validity+' Days.',
+  ];
+  doc.setTextColor(30,30,30); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  terms.forEach((t,i)=>{
+    doc.text((i+1)+'.  '+t, m+3, y); y+=5.5;
+  });
+
+  // ── FOOTER ────────────────────────────────────────────────
   y+=4;
-  doc.setFillColor(240,192,64); doc.rect(m,y,W-m*2,5.5,'F');
-  doc.setTextColor(14,15,17); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('ORDER SUMMARY',m+2,y+3.8); y+=9;
-  const tq=Object.values(o.qtys).reduce((s,v)=>s+v,0);
-  [['Total Qty',f0(tq)+' sqm'],['Revenue','₹'+fL(o.revenue)],['Total Cost','₹'+fL(o.totalCost)],
-   ['Gross Profit','₹'+fL(o.profitRs)],['Margin %',(o.margin*100).toFixed(1)+'%'],['Steel Used',f2(o.totalKg)+' kg']
-  ].forEach(([l,v],i)=>{
-    const bx=m+(i%3)*60,by=y+Math.floor(i/3)*15;
-    doc.setFillColor(245,245,245); doc.rect(bx,by-3.5,56,11,'F');
-    doc.setTextColor(120,120,120); doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.text(l.toUpperCase(),bx+2,by);
-    doc.setTextColor(20,20,20); doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.text(v,bx+2,by+5.5);
-  });
-  doc.setFillColor(14,15,17); doc.rect(0,282,210,15,'F');
-  doc.setTextColor(100,100,100); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
-  doc.text('DuctCalc  |  Quote includes '+o.profit+'% profit margin  |  Rates subject to change',105,290,{align:'center'});
-  doc.save('DuctCalc_'+o.customer.replace(/\s/g,'_')+'_'+o.date+'.pdf');
+  doc.setFillColor(240,248,255); doc.rect(m,y,W-m*2,14,'F');
+  doc.setDrawColor(26,82,118); doc.setLineWidth(0.4); doc.rect(m,y,W-m*2,14,'S');
+  doc.setTextColor(26,82,118); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+  doc.text('Email:', m+3, y+5);
+  doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30);
+  doc.text('info@ductline.in, accounts@ductline.in', m+16, y+5);
+  doc.setTextColor(26,82,118); doc.setFont('helvetica','bold');
+  doc.text('Contact:', m+3, y+11);
+  doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30);
+  doc.text('Shiva Kumar B M: +91 9731762658  |  P. Nagendra: +91 9014607177  |  Arvind: +91 9160484166', m+20, y+11);
+
+  // bottom stamp
+  doc.setFillColor(26,82,118); doc.rect(0,288,210,9,'F');
+  doc.setTextColor(180,200,240); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+  doc.text('DUCTLINE MANUFACTURING  |  info@ductline.in  |  This quotation is computer generated', 105, 293.5, {align:'center'});
+
+  doc.save('Ductline_Quote_'+(o.customer||'Draft').replace(/\s/g,'_')+'_'+o.date+'.pdf');
   toast('PDF exported','success');
+}
+
+function formatDate(d){
+  if(!d) return new Date().toLocaleDateString('en-IN');
+  const p=d.split('-'); return p[2]+'/'+p[1]+'/'+p[0];
 }
 
 // ══════════════════════
@@ -938,6 +1040,68 @@ function toast(msg,type='success'){
   clearTimeout(tt); tt=setTimeout(()=>t.className='',2800);
 }
 
+
+
+// ══════════════════════
+// EMAIL
+// ══════════════════════
+function buildEmailBody(o) {
+  const dt = DT[o.tk];
+  const gaugesWithQty = o.gauges.filter(g=>(o.qtys[g]||0)>0);
+  const gstPct = o.gstPct||18;
+  const basicTotal = gaugesWithQty.reduce((s,g)=>s+o.costs[g].quote*(o.qtys[g]||0),0);
+  const gstAmt = basicTotal*gstPct/100;
+  const grandTotal = basicTotal+gstAmt;
+  const validity = o.validity||15;
+
+  let rows = '';
+  gaugesWithQty.forEach((g,i)=>{
+    const qty=o.qtys[g]||0, qp=o.costs[g].quote, amt=qty*qp;
+    const gaugeNom = g==='24G(0.63)'?'24G - 0.63 mm':g==='24G'?'24G - 0.60 mm':g==='22G'?'22G - 0.80 mm':g==='20G'?'20G - 1.00 mm':g==='18G'?'18G - 1.25 mm':g==='26G'?'26G - 0.55 mm':g;
+    const size=(o.sizes&&o.sizes[g])||'';
+    rows += `${i+1}. ${size} | ${gaugeNom} | ${o.typeLabel} | ${f2(qty)} SqMtr @ ₹${f2(qp)} = ₹${f2(amt)}%0D%0A`;
+  });
+
+  const body =
+    `Dear Sir/Madam,%0D%0A%0D%0A`+
+    `Please find below our quotation for your requirement.%0D%0A%0D%0A`+
+    `Customer: ${o.customer||''}%0D%0A`+
+    (o.projref?`Project: ${o.projref}%0D%0A`:'')+
+    `Date: ${formatDate(o.date)}%0D%0A`+
+    `Duct Type: ${o.typeLabel}%0D%0A%0D%0A`+
+    `--- QUOTATION DETAILS ---%0D%0A`+
+    rows+
+    `%0D%0ATotal Basic Amount: Rs. ${f2(basicTotal)}%0D%0A`+
+    `GST @ ${gstPct}%: Rs. ${f2(gstAmt)}%0D%0A`+
+    `Grand Total: Rs. ${f2(grandTotal)}%0D%0A%0D%0A`+
+    `--- TERMS & CONDITIONS ---%0D%0A`+
+    `1. Above quoted prices are only for the supply of materials.%0D%0A`+
+    `2. Payment Terms: 45 Days PDC%0D%0A`+
+    `3. Dispatch Schedule: As per schedule after confirmation of Drawing.%0D%0A`+
+    `4. Freight — Extra at actual.%0D%0A`+
+    `5. TDF Corner, Carriage Bolts, Nuts, Gasket, Clits included in above price.%0D%0A`+
+    `6. H-Frame & Fixing included in above price.%0D%0A`+
+    `7. Price Validity: ${validity} Days.%0D%0A%0D%0A`+
+    `Regards,%0D%0ADuctline Manufacturing%0D%0A`+
+    `Email: info@ductline.in | accounts@ductline.in%0D%0A`+
+    `Contact: Shiva Kumar: +91 9731762658 | Nagendra: +91 9014607177 | Arvind: +91 9160484166`;
+
+  return body;
+}
+
+function sendEmail() {
+  const o = buildSnap();
+  if(!o.customer){ toast('Enter customer name first','error'); return; }
+  const subject = encodeURIComponent('Quotation - Ductline Manufacturing - '+o.customer+(o.projref?' ('+o.projref+')':''));
+  window.location.href = 'mailto:?subject='+subject+'&body='+buildEmailBody(o);
+}
+
+function sendOrderEmail(id) {
+  const o = orders.find(x=>x.id===id); if(!o) return;
+  const full = {...o, gauges:DT[o.tk].gauges};
+  const subject = encodeURIComponent('Quotation - Ductline Manufacturing - '+o.customer+(o.projref?' ('+o.projref+')':''));
+  window.location.href = 'mailto:?subject='+subject+'&body='+buildEmailBody(full);
+}
 
 // ══════════════════════
 // LOGIN
