@@ -623,10 +623,9 @@ function calcGauge(tk,g,rates){
   const acc   = dt.acc[g];
   const lab   = dt.lab[g];
   const sub   = raw+plasma;
-  const oh    = sub*dt.ohp[g];
-  const total = sub+oh+acc+lab;
+  const total = sub+acc+lab;
   const quote = total/(1-curP/100);
-  return {wt,rate,raw,plasma,acc,lab,oh,total,quote};
+  return {wt,rate,raw,plasma,acc,lab,oh:0,total,quote};
 }
 
 // ══════════════════════
@@ -671,14 +670,14 @@ function recalc(){
 
   // gather results
   let tQty=0,tRev=0,tCost=0,tKg=0;
-  let sRaw=0,sPla=0,sAcc=0,sLab=0,sOh=0;
+  let sRaw=0,sPla=0,sAcc=0,sLab=0;
   const res={};
   dt.gauges.forEach(g=>{
     const c=calcGauge(tk,g,rates);
     const qty=parseFloat(document.getElementById('q_'+gid(g))?.value)||0;
     res[g]={...c,qty};
     tQty+=qty; tRev+=c.quote*qty; tCost+=c.total*qty; tKg+=c.wt*qty;
-    sRaw+=c.raw*qty; sPla+=c.plasma*qty; sAcc+=c.acc*qty; sLab+=c.lab*qty; sOh+=c.oh*qty;
+    sRaw+=c.raw*qty; sPla+=c.plasma*qty; sAcc+=c.acc*qty; sLab+=c.lab*qty;
   });
 
   document.getElementById('ft_q').textContent=f0(tQty)+' sqm';
@@ -699,13 +698,13 @@ function recalc(){
   });
 
   // cost bar
-  const gc=sRaw+sPla+sAcc+sLab+sOh;
+  const gc=sRaw+sPla+sAcc+sLab;
   if(gc>0){
     document.getElementById('cb1').style.width=(sRaw/gc*100).toFixed(1)+'%';
     document.getElementById('cb2').style.width=(sPla/gc*100).toFixed(1)+'%';
     document.getElementById('cb3').style.width=(sAcc/gc*100).toFixed(1)+'%';
     document.getElementById('cb4').style.width=(sLab/gc*100).toFixed(1)+'%';
-    document.getElementById('cb5').style.width=(sOh/gc*100).toFixed(1)+'%';
+    document.getElementById('cb5').style.width='0%';
   }
 
   // Quote grid
