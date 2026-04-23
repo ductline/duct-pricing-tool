@@ -300,6 +300,9 @@ input.qty-inp[type=number]{-moz-appearance:textfield;}
       <div class="mf"><label>Customer Ref / Project</label><input type="text" id="projref" placeholder="e.g. HSBC - Block A"></div>
       <div class="mf"><label>GST %</label><input type="number" id="gstpct" value="18" min="0" max="28" step="0.5"></div>
       <div class="mf"><label>Price Validity (days)</label><input type="number" id="validity" value="15" min="1"></div>
+      <div class="mf"><label>Material GSM</label><input type="number" id="gsm" value="120" min="60" max="275" step="10" placeholder="e.g. 120"></div>
+      <div class="mf"><label>Payment Terms</label><input type="text" id="payterms" value="45 Days PDC" placeholder="e.g. 45 Days PDC"></div>
+      <div class="mf"><label>Credit Terms</label><input type="text" id="creditterms" value="" placeholder="e.g. 50% Advance, balance on delivery"></div>
     </div>
     <div class="config-row">
       <div class="mf">
@@ -740,6 +743,9 @@ function saveOrder(){
     projref:document.getElementById('projref')?.value||'',
     gstPct:parseFloat(document.getElementById('gstpct')?.value)||18,
     validity:document.getElementById('validity')?.value||'15',
+    gsm:document.getElementById('gsm')?.value||'120',
+    payterms:document.getElementById('payterms')?.value||'45 Days PDC',
+    creditterms:document.getElementById('creditterms')?.value||'',
     profit:curP,sections:sectionSnaps,revenue,totalCost,totalKg,
     profitRs:revenue-totalCost,margin:revenue>0?(revenue-totalCost)/revenue:0,
     rates:JSON.parse(JSON.stringify(rates)),
@@ -833,6 +839,9 @@ function loadOrder(id){
   if(document.getElementById('projref')) document.getElementById('projref').value=o.projref||'';
   if(document.getElementById('gstpct')) document.getElementById('gstpct').value=o.gstPct||18;
   if(document.getElementById('validity')) document.getElementById('validity').value=o.validity||15;
+  if(document.getElementById('gsm')) document.getElementById('gsm').value=o.gsm||'120';
+  if(document.getElementById('payterms')) document.getElementById('payterms').value=o.payterms||'45 Days PDC';
+  if(document.getElementById('creditterms')) document.getElementById('creditterms').value=o.creditterms||'';
   setP(o.profit||6);
   if(o.rates)['26G','24G','22G','20G','18G'].forEach(g=>{const n=g.replace('G','');const el=document.getElementById('r'+n);if(el&&o.rates[g])el.value=o.rates[g];});
   const secs=o.sections||[{tk:o.tk||'tdf_box',qtys:o.qtys||{},sizes:o.sizes||{}}];
@@ -879,6 +888,9 @@ function buildSnap(){
     projref:document.getElementById('projref')?.value||'',
     gstPct:parseFloat(document.getElementById('gstpct')?.value)||18,
     validity:document.getElementById('validity')?.value||'15',
+    gsm:document.getElementById('gsm')?.value||'120',
+    payterms:document.getElementById('payterms')?.value||'45 Days PDC',
+    creditterms:document.getElementById('creditterms')?.value||'',
     profit:curP,sections:sectionSnaps,revenue,totalCost,totalKg,
     profitRs:revenue-totalCost,margin:revenue>0?(revenue-totalCost)/revenue:0,
     tk:sectionSnaps[0]?.tk,typeLabel:sectionSnaps.map(s=>s.typeLabel).join(' + '),
@@ -1000,7 +1012,7 @@ function genPDF(o){
   doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
   doc.text('DUCTLINE MANUFACTURING',m+57,14);
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-  doc.text('Material as per IS 277 - Grade VIII - Jindal (120 gsm)',m+57,21);
+  doc.text('Material as per IS 277 - Grade VIII - Jindal ('+(o.gsm||'120')+' gsm)',m+57,21);
   doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
   doc.text('DATE: '+formatDate(o.date),W-m,14,{align:'right'});
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
@@ -1100,13 +1112,19 @@ function genPDF(o){
   doc.setTextColor(10,10,10); doc.setFontSize(8); doc.setFont('helvetica','bold');
   doc.text('TERMS AND CONDITIONS',m+6,y+4.5); y+=10;
   const validity=o.validity||15;
-  ['Above quoted prices are only for the supply of materials.',
-   'Payment Terms: 45 Days PDC',
-   'Dispatch Schedule: Ducting as per schedule after confirmation of Drawing.',
-   'Freight - Extra at actual.',
-   'TDF Corner, Carriage Bolts, Nuts, Gasket, Clits included in above price.',
-   'H-Frame & Fixing included in above price.',
-   'Price Validity: '+validity+' Days.'].forEach((t,i)=>{
+  const payterms = o.payterms||'45 Days PDC';
+  const creditterms = o.creditterms||'';
+  const termsList = [
+    'Above quoted prices are only for the supply of materials.',
+    'Payment Terms: '+payterms,
+    'Dispatch Schedule: Ducting as per schedule after confirmation of Drawing.',
+    'Freight - Extra at actual.',
+    'TDF Corner, Carriage Bolts, Nuts, Gasket, Clits included in above price.',
+    'H-Frame & Fixing included in above price.',
+    'Price Validity: '+validity+' Days.',
+  ];
+  if(creditterms) termsList.push('Credit Terms: '+creditterms);
+  termsList.forEach((t,i)=>{
     doc.setTextColor(40,40,40); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
     doc.text((i+1)+'.  '+t,m+3,y); y+=5.2;
   });
